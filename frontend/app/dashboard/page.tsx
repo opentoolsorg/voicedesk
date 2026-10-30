@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Buildings, Check, MagnifyingGlass, MicrophoneStage, PhoneCall, Plus, ArrowClockwise } from "@phosphor-icons/react";
 import { api, type Business, type Call, type Lead } from "@/lib/api";
+import { apiDate } from "./[id]/ui";
 
 const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700";
 const button = `inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${focus}`;
@@ -14,7 +15,7 @@ const DEMO_LEADS: Lead[] = [
 ];
 
 function formatDate(value: string) {
-  const date = new Date(value);
+  const date = apiDate(value);
   return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleString();
 }
 

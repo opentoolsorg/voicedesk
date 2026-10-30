@@ -26,6 +26,7 @@ class Call(Base):
     telephony_provider: Mapped[str | None] = mapped_column(String(30))
     livekit_room_id: Mapped[str | None] = mapped_column(String(255))
     caller_number: Mapped[str | None] = mapped_column(String(20))
+    caller_name: Mapped[str | None] = mapped_column(String(255))
     duration_sec: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(50), default="in_progress")
     # answered | missed | voicemail | failed

@@ -6,6 +6,8 @@ Each template is rendered with business config at runtime.
 from dataclasses import dataclass
 from typing import Literal
 
+from app.core.agent_data import normalize_faq, normalize_services
+
 Vertical = Literal["salon", "restaurant", "repair", "general"]
 
 
@@ -161,13 +163,13 @@ def render_system_prompt(template: Template, config: dict) -> str:
             return "Various services available"
         return ", ".join(
             f"{s['name']} ({s.get('duration_min', 60)} min, ${s.get('price', 'TBD')})"
-            for s in services
+            for s in normalize_services(services)
         )
 
     def format_faq(faq: list | None) -> str:
         if not faq:
             return "No specific FAQ configured"
-        return "\n".join(f"Q: {f['question']}\nA: {f['answer']}" for f in faq)
+        return "\n".join(f"Q: {f['question']}\nA: {f['answer']}" for f in normalize_faq(faq))
 
     return template.system_prompt_template.format(
         agent_name=config.get("agent_name", template.default_agent_name),

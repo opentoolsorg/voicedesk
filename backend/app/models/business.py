@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, JSON, ForeignKey, Text
+from sqlalchemy import String, Boolean, DateTime, JSON, ForeignKey, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
@@ -21,6 +21,7 @@ class Business(Base):
     provider_number_id: Mapped[str | None] = mapped_column(String(255))
     twilio_sid: Mapped[str | None] = mapped_column(String(255))
     timezone: Mapped[str] = mapped_column(String(50), default="America/New_York")
+    plan: Mapped[str] = mapped_column(String(20), default="starter", server_default=text("'starter'"))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
@@ -55,6 +56,13 @@ class AgentConfig(Base):
     faq: Mapped[list | None] = mapped_column(JSON)
     flow_data: Mapped[dict | None] = mapped_column(JSON)
     active_flow_version_id: Mapped[str | None] = mapped_column(String(36))
+    greeting: Mapped[str | None] = mapped_column(Text)
+    transfer_number: Mapped[str | None] = mapped_column(String(20))
+    website_url: Mapped[str | None] = mapped_column(String(500))
+    knowledge_text: Mapped[str | None] = mapped_column(Text)
+    take_messages: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("1"))
+    booking_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("1"))
+    notify_email: Mapped[str | None] = mapped_column(String(255))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
     )

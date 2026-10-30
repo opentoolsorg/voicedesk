@@ -1,102 +1,106 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Buildings, Check, MicrophoneStage } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, Check, Headphones } from "lucide-react";
 import { api } from "@/lib/api";
+import AgentFields, { DEFAULT_AGENT, DAYS, DAY_LABELS, agentPayload, type AgentDraft } from "../components/AgentFields";
+import TestChat from "../components/TestChat";
 
-const VERTICALS = [
-  { value: "salon", label: "Salon / spa", prompt: "A starting point for booking questions, reminders, and missed-call follow-up." },
-  { value: "restaurant", label: "Restaurant", prompt: "A starting point for reservations, menu questions, and busy-hour inquiries." },
-  { value: "repair", label: "Repair shop", prompt: "A starting point for collecting issue details and organizing service inquiries." },
-  { value: "general", label: "General business", prompt: "A flexible starting point for an AI receptionist. Tailor the conversation to your business." },
-];
-const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700";
-const input = "min-h-12 w-full rounded-lg border border-zinc-300 bg-white px-3.5 py-3 text-sm outline-none transition-colors placeholder:text-zinc-500 hover:border-zinc-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 disabled:bg-zinc-50 disabled:text-zinc-500";
+const STEPS = ["Business", "Knowledge", "Call handling", "Phone & test"];
+const VERTICALS = ["restaurant", "dental", "real_estate", "hr", "ecommerce", "salon", "repair", "general"];
+const DRAFT_KEY = "voicedesk-receptionist-draft-v1";
+interface Draft { name: string; vertical: string; timezone: string; agent: AgentDraft; businessId?: string; phoneNumber?: string; step: number }
+const INITIAL: Draft = { name: "", vertical: "general", timezone: "America/New_York", agent: DEFAULT_AGENT, step: 0 };
 
 export default function NewBusiness() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [vertical, setVertical] = useState("general");
-  const [loading, setLoading] = useState(false);
+  const [draft, setDraft] = useState<Draft>(INITIAL);
+  const [createdBusinessId, setCreatedBusinessId] = useState<string>();
+  const businessId = draft.businessId || createdBusinessId;
+  const [ready, setReady] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [nameError, setNameError] = useState("");
+  const [phoneMode, setPhoneMode] = useState("new");
+  const [areaCode, setAreaCode] = useState("415");
+  const [number, setNumber] = useState("");
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
   const submitting = useRef(false);
-  const nameInput = useRef<HTMLInputElement>(null);
-  const selectedVertical = VERTICALS.find((item) => item.value === vertical) ?? VERTICALS[3];
 
-  async function submit(event: React.FormEvent) {
+  useEffect(() => {
+    try { const saved = localStorage.getItem(DRAFT_KEY); if (saved) { const parsed = JSON.parse(saved); if (parsed && typeof parsed.name === "string" && parsed.agent && Array.isArray(parsed.agent.faq) && Number.isInteger(parsed.step)) { setDraft({ ...INITIAL, ...parsed, businessId: parsed.step === 3 ? undefined : parsed.businessId, step: Math.max(0, Math.min(2, parsed.step)), agent: { ...DEFAULT_AGENT, ...parsed.agent, business_hours: Object.fromEntries(DAYS.map(day => [day, parsed.agent.business_hours?.[day] ?? parsed.agent.business_hours?.[DAY_LABELS[day].toLowerCase()] ?? DEFAULT_AGENT.business_hours[day]])) } }); setNumber(parsed.businessId && parsed.step !== 3 ? parsed.phoneNumber || "" : ""); } } } catch { /* Storage may be unavailable. */ }
+    setReady(true);
+  }, []);
+  useEffect(() => { if (ready) { try { if (createdBusinessId) localStorage.removeItem(DRAFT_KEY); else localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); setDraftSaved(true); } catch { setDraftSaved(false); } } }, [draft, ready, createdBusinessId]);
+
+  async function next(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting.current) return;
-    if (!name.trim()) {
-      setNameError("Enter a business name, not just spaces.");
-      nameInput.current?.focus();
-      return;
-    }
-    submitting.current = true;
-    setLoading(true);
     setError("");
-    setNameError("");
-    try {
-      const business = await api.businesses.create({ name: name.trim(), vertical });
-      router.push(`/dashboard/${business.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the business. Please try again.");
-      submitting.current = false;
-      setLoading(false);
+    if (!draft.name.trim()) { setError("Enter a business name, not just spaces."); return; }
+    if (draft.step < 2) { setDraft({ ...draft, step: draft.step + 1 }); return; }
+    if (draft.step === 3) {
+      try { localStorage.removeItem(DRAFT_KEY); } catch { /* Storage may be unavailable. */ }
+      if (!businessId) { setDraft(current => ({ ...current, step: 2 })); return; }
+      router.push(`/dashboard/${businessId}`); return;
     }
+    if (!draft.agent.agent_name.trim() || !draft.agent.greeting.trim()) { setError("Enter an agent name and greeting, not just spaces."); return; }
+    submitting.current = true; setBusy(true);
+    try {
+      const fields = { name: draft.name.trim(), vertical: draft.vertical, timezone: draft.timezone };
+      // A restored draft can point at a deleted workspace; recreate instead of failing forever.
+      const business = businessId
+        ? await api.businesses.update(businessId, fields).catch(err => {
+            if (err instanceof Error && /not found|404/i.test(err.message)) {
+              setCreatedBusinessId(undefined);
+              setDraft(current => ({ ...current, businessId: undefined }));
+              return api.businesses.create(fields);
+            }
+            throw err;
+          })
+        : await api.businesses.create(fields);
+      // Keep the ID before saving config so retries never create duplicate workspaces.
+      setDraft(current => ({ ...current, businessId: business.id }));
+      await api.businesses.updateConfig(business.id, agentPayload(draft.agent));
+      setCreatedBusinessId(business.id);
+      setDraft(current => ({ ...current, businessId: undefined, step: 3 }));
+    } catch (err) { setError(err instanceof Error ? err.message : "Could not save setup. Your draft is still here."); }
+    finally { submitting.current = false; setBusy(false); }
   }
 
-  return (
-    <main className="min-h-[100dvh] bg-[#f8f9f6] text-zinc-900 [font-family:var(--font-geist-sans),sans-serif]">
-      <header className="border-b border-zinc-200 bg-white">
-        <nav aria-label="Setup navigation" className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-8">
-          <Link href="/" className={`flex items-center gap-2.5 rounded-md text-lg font-semibold tracking-tight ${focus}`}><span className="rounded-lg bg-emerald-900 p-2 text-emerald-100"><MicrophoneStage aria-hidden="true" size={18} weight="fill" /></span>VoiceDesk</Link>
-          <Link href="/dashboard" className={`inline-flex min-h-10 items-center gap-2 rounded-sm text-xs text-zinc-500 transition-colors hover:text-emerald-800 ${focus}`}><ArrowLeft aria-hidden="true" size={15} />Back to dashboard</Link>
-        </nav>
-      </header>
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-16">
-        <div className="mb-9 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-zinc-500" aria-label="Setup progress"><span className="font-medium text-emerald-800" aria-current="step">01 / Business</span><span aria-hidden="true">—</span><span>02 / Agent configuration</span><span aria-hidden="true">—</span><span>03 / Voice connection</span></div>
-        <div className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-x-20 lg:gap-y-8">
-          <div className="lg:pt-3">
-            <p className="text-xs font-medium text-emerald-800">A home for your agent</p>
-            <h1 className="mt-4 max-w-md text-4xl font-medium leading-[1.12] tracking-[-0.05em] sm:text-5xl">Create a business workspace</h1>
-            <p className="mt-5 max-w-md text-sm leading-7 text-zinc-600">Start with a name and a business type. Next, you’ll configure the agent’s instructions, conversation flow, and phone connection.</p>
-          </div>
+  function startOver() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* Storage may be unavailable. */ }
+    setCreatedBusinessId(undefined); setDraft(INITIAL); setNumber(""); setError(""); setPhoneError("");
+  }
 
-          <form onSubmit={submit} aria-busy={loading} aria-labelledby="form-title" className="min-w-0 overflow-hidden rounded-2xl lg:col-start-2 lg:row-start-1 lg:row-span-2 border border-zinc-200 bg-white shadow-[0_20px_60px_-40px_rgba(19,56,40,0.25)]">
-            <div className="border-b border-zinc-200 px-6 py-6 sm:px-8"><span className="mb-3 inline-flex rounded-lg bg-emerald-50 p-2 text-emerald-800"><Buildings aria-hidden="true" size={20} /></span><h2 id="form-title" className="text-xl font-medium tracking-tight">The essentials</h2><p className="mt-2 text-sm text-zinc-500">Two details to get started.</p></div>
-            <div className="space-y-6 p-6 sm:p-8">
-              <div>
-                <label htmlFor="business-name" className="mb-2 block text-sm font-medium">Business name <span className="font-normal text-zinc-500">(required)</span></label>
-                <input ref={nameInput} id="business-name" name="business-name" autoComplete="organization" className={input} placeholder="e.g. Juniper Dental" value={name} onChange={(event) => { setName(event.target.value); setNameError(""); }} aria-invalid={Boolean(nameError)} aria-describedby={nameError ? "name-error" : "name-hint"} disabled={loading} required />
-                {nameError ? <p id="name-error" role="alert" className="mt-2 text-xs text-red-700">{nameError}</p> : <p id="name-hint" className="mt-2 text-xs leading-5 text-zinc-500">Use the name you want to see in your dashboard.</p>}
-              </div>
-              <div>
-                <label htmlFor="business-type" className="mb-2 block text-sm font-medium">Business type</label>
-                <select id="business-type" name="business-type" className={input} value={vertical} onChange={(event) => setVertical(event.target.value)} aria-describedby="type-hint" disabled={loading}>
-                  {VERTICALS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
-                <p id="type-hint" className="mt-2 text-xs leading-5 text-zinc-500">Choose the closest fit, or start with general business.</p>
-              </div>
-              <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-4 py-4" aria-live="polite"><p className="text-xs font-medium text-emerald-900">{selectedVertical.label}</p><p className="mt-1.5 text-xs leading-6 text-emerald-900/75">{selectedVertical.prompt}</p></div>
-              {error && <div role="alert" className="break-words rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800"><p className="font-medium">Could not create the workspace.</p><p>{error}</p><p className="mt-1 text-xs">Your details are still here. Check the connection and try again.</p></div>}
-              <div><button type="submit" disabled={loading} className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-emerald-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-emerald-800 disabled:cursor-wait disabled:bg-emerald-900/60 ${focus}`}>{loading ? "Creating workspace…" : <>Create workspace <ArrowRight aria-hidden="true" size={17} /></>}</button><p role="status" className="mt-3 text-center text-xs leading-5 text-zinc-500">{loading ? "Saving your business. You’ll be taken to its workspace." : "Next: configure your agent inside the workspace."}</p></div>
-            </div>
-          </form>
-          <aside className="lg:col-start-1 lg:row-start-2">
-            <div className="border-t border-zinc-200 pt-7">
-              <h2 className="text-sm font-medium">What you’re creating</h2>
-              <ul className="mt-4 space-y-4 text-sm text-zinc-500">
-                {["A separate workspace for this business", "A place to manage the agent and its call flow", "A view of this business’s recorded calls"].map((item) => <li key={item} className="flex items-start gap-3"><Check aria-hidden="true" size={16} className="mt-0.5 shrink-0 text-emerald-700" /><span>{item}</span></li>)}
-              </ul>
-            </div>
-            <p className="mt-8 max-w-md text-xs leading-6 text-zinc-500">Creating a workspace does not connect a phone number or place a call. Voice requires provider credentials and telephony configuration.</p>
-          </aside>
-        </div>
-        <footer className="mt-14 border-t border-zinc-200 pt-5 text-xs text-zinc-500">VoiceDesk · Open-source, self-hosted voice agents.</footer>
+  async function provision() {
+    if (!businessId || phoneBusy) return;
+    if (!/^\d{3}$/.test(areaCode)) { setPhoneError("Enter a three-digit area code."); return; }
+    setPhoneBusy(true); setPhoneError("");
+    try { const result = await api.businesses.provision(businessId, areaCode); setNumber(result.phone_number); setDraft(current => ({ ...current, phoneNumber: result.phone_number })); }
+    catch (err) { setPhoneError(`${err instanceof Error ? err.message : "Number provisioning is unavailable."} You can finish setup and connect a number later.`); }
+    finally { setPhoneBusy(false); }
+  }
+
+  return <main className="min-h-screen bg-theme-bg text-theme-fg">
+    <header className="border-b border-theme-border bg-theme-surface"><div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5"><Link href="/" className="flex items-center gap-2 font-semibold tracking-tight"><Headphones size={21} />VoiceDesk</Link><Link href="/dashboard" className="flex items-center gap-2 text-sm text-theme-label"><ArrowLeft size={15} />Dashboard</Link></div></header>
+    <div className="mx-auto max-w-6xl px-5 py-9 sm:py-12">
+      <ol aria-label="Setup progress" className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">{STEPS.map((step, index) => <li key={step} aria-current={draft.step === index ? "step" : undefined} className={`flex items-center gap-3 rounded-xl border px-3 py-3 text-sm ${index === draft.step ? "border-theme-border-muted bg-theme-surface-muted font-semibold" : "border-theme-border text-theme-label"}`}><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-current text-xs">{index < draft.step ? <Check size={14} /> : index + 1}</span>{step}</li>)}</ol>
+      <div className="grid items-start gap-8 lg:grid-cols-[0.7fr_1.3fr] lg:gap-14"><aside><p className="text-xs font-semibold uppercase tracking-[0.18em] text-theme-label">Your next great first impression</p><h1 className="mt-4 text-4xl font-semibold leading-tight tracking-[-0.045em]">{["Meet your new receptionist.", "Make it your business expert.", "Every call, handled your way.", "Give your agent a line."][draft.step]}</h1><p className="mt-5 text-sm leading-7 text-theme-label">{["A few details help us tailor your agent. You can change everything later.", "Start with the essentials. Clear answers help your agent feel like part of your team.", "Choose how your agent greets callers, captures requests, and hands off to you.", "Try your agent before going live. Phone setup is optional and requires a configured provider."][draft.step]}</p><p className="mt-7 rounded-xl border border-theme-border p-4 text-xs leading-6 text-theme-label">{createdBusinessId ? "Your setup is saved. Open your dashboard to return to this agent later." : draftSaved ? "Draft saved on this device." : "Browser storage unavailable. Keep this tab open to retain your draft."} No phone calls are placed during setup.</p>{(draft.name || draft.businessId) && <button type="button" onClick={startOver} disabled={busy || phoneBusy} className="mt-3 text-sm text-theme-label underline">Start over with a new business</button>}</aside>
+      {!ready ? <div className="card" role="status">Loading your draft…</div> : <div className="space-y-5"><form onSubmit={next} className="card space-y-6" aria-busy={busy}>
+        <fieldset disabled={busy || phoneBusy} className="min-w-0 space-y-6">
+          {draft.step === 0 && <><div><h2 className="text-xl font-semibold">The business essentials</h2><p className="mt-2 text-sm text-theme-label">Who will your agent answer for?</p></div><label className="block text-sm font-medium">Business name<input className="input mt-2" autoComplete="organization" required value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} placeholder="Juniper Dental" /></label><label className="block text-sm font-medium">Business type<select className="input mt-2" value={draft.vertical} onChange={event => setDraft({ ...draft, vertical: event.target.value })}>{VERTICALS.map(vertical => <option key={vertical} value={vertical}>{({ real_estate: "Real estate", hr: "HR", ecommerce: "E-commerce", salon: "Salon / spa", repair: "Repair shop" } as Record<string, string>)[vertical] || vertical[0].toUpperCase() + vertical.slice(1)}</option>)}</select></label><label className="block text-sm font-medium">Timezone<select className="input mt-2" value={draft.timezone} onChange={event => setDraft({ ...draft, timezone: event.target.value })}>{["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "Europe/London", "Europe/Paris", "Asia/Kolkata", "Asia/Singapore", "Australia/Sydney", "UTC"].map(zone => <option key={zone}>{zone}</option>)}</select></label></>}
+          {draft.step === 1 && <AgentFields section="knowledge" value={draft.agent} onChange={agent => setDraft({ ...draft, agent })} />}
+          {draft.step === 2 && <AgentFields section="handling" value={draft.agent} onChange={agent => setDraft({ ...draft, agent })} />}
+          {draft.step === 3 && <><h2 className="text-xl font-semibold">Connect when you’re ready</h2><div className="grid gap-3 sm:grid-cols-2">{[["new", "Get a new number"], ["forward", "Forward my existing number"]].map(([mode, title]) => <label key={mode} className={`flex cursor-pointer items-start gap-2 rounded-xl border p-4 text-sm ${phoneMode === mode ? "border-theme-border-muted bg-theme-surface-muted" : "border-theme-border"}`}><input type="radio" name="phone-mode" value={mode} checked={phoneMode === mode} onChange={() => setPhoneMode(mode)} />{title}</label>)}</div>{number ? <p role="status" className="rounded-xl bg-theme-surface-muted p-4 text-sm">Your number is ready: <strong>{number}</strong></p> : phoneMode === "new" ? <div className="space-y-3"><label className="block text-sm font-medium">Preferred area code<input className="input mt-2" inputMode="numeric" maxLength={3} value={areaCode} onChange={event => setAreaCode(event.target.value)} /></label><button type="button" onClick={provision} className="btn-secondary" disabled={phoneBusy}>{phoneBusy ? "Connecting…" : "Provision number"}</button><p className="text-xs text-theme-label">Requires a configured telephony provider. Provider charges may apply.</p></div> : <div className="rounded-xl bg-theme-bg p-4 text-sm leading-7"><ol className="list-decimal pl-4"><li>Get a VoiceDesk destination number here or on the Phone page.</li><li>Ask your carrier to forward unanswered or all calls to that number.</li><li>Place a test call from another phone to confirm routing.</li></ol><p className="mt-3 text-xs text-theme-label">Carrier codes vary. Check with your carrier before enabling forwarding.</p><button type="button" className="mt-3 text-sm underline" onClick={() => setPhoneMode("new")}>Get a destination number</button></div>}{phoneError && <p role="alert" className="text-sm text-red-700">{phoneError}</p>}</>}
+        </fieldset>
+        {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-theme-border pt-5"><button type="button" className="btn-secondary" disabled={!draft.step || busy || phoneBusy} onClick={() => { setError(""); setDraft({ ...draft, step: draft.step - 1 }); }}><ArrowLeft size={15} className="mr-2" />Back</button><button type="submit" className="btn-primary disabled:opacity-50" disabled={busy || phoneBusy}>{busy ? "Saving setup…" : draft.step === 3 ? "Open dashboard" : draft.step === 2 ? "Save & test agent" : "Continue"}<ArrowRight size={15} className="ml-2" /></button></div>
+      </form>{draft.step === 3 && <TestChat businessId={businessId} />}</div>}
       </div>
-    </main>
-  );
+    </div>
+  </main>;
 }

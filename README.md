@@ -29,7 +29,6 @@ VoiceDesk is an open-source, white-label AI voice-agent platform: configure nich
 ├── backend/                # FastAPI application + LiveKit voice agent
 │   ├── app/                # REST endpoints, core database models, telephony services
 │   ├── agent/              # LiveKit voice worker runtime (Sarvam / OpenAI)
-│   ├── templates/          # Niche agent templates (JSON prompt/tool presets)
 │   ├── src/worker.py       # Cloudflare Python Worker entrypoint (Pyodide FastAPI)
 │   ├── wrangler.jsonc      # Cloudflare Worker configuration + D1 bindings
 │   └── pyproject.toml      # Python dependencies (split: Pyodide core vs server extras)

@@ -27,6 +27,8 @@
       "sqlalchemy/dialects/oracle/**", "sqlalchemy/dialects/postgresql/**"
     ]
   },
+  // Workers AI for the dashboard "Test your agent" chat; remote-only under `pywrangler dev`.
+  "ai": { "binding": "AI" },
   "d1_databases": [
     // No database_id: wrangler creates the D1 database on first deploy and writes the id back here.
     { "binding": "DB", "database_name": "voicedesk" }

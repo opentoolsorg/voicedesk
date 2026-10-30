@@ -55,9 +55,9 @@ VoiceDesk is divided into three components:
 
 One of the best ways to contribute is by adding template presets for specific industries. 
 
-Templates are located in `backend/templates/`. Each preset is a JSON file:
-```json
-{
+Templates live in `backend/app/template_data.py`, one entry per preset in the `TEMPLATES` dict:
+```python
+"veterinary": {
   "id": "veterinary",
   "name": "Veterinary Clinic",
   "agent_name": "Oliver",

@@ -2,9 +2,12 @@
 Call log endpoints — list calls, get transcripts, get stats.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+import csv
+import io
+
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, or_
 from pydantic import BaseModel
 import uuid
 from datetime import datetime
@@ -22,16 +25,41 @@ class CallOut(BaseModel):
     id: str
     business_id: str
     twilio_call_sid: str | None
+    direction: str
     caller_number: str | None
+    caller_name: str | None
     duration_sec: int | None
     status: str
     outcome: str | None
     summary: str | None
+    recording_url: str | None
     started_at: datetime
     ended_at: datetime | None
 
     class Config:
         from_attributes = True
+
+
+class BookingOut(BaseModel):
+    id: str
+    business_id: str
+    call_id: str | None
+    customer_name: str | None
+    customer_phone: str | None
+    service: str | None
+    appointment_at: datetime | None
+    duration_min: int
+    status: str
+    notes: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CallDetailOut(CallOut):
+    transcript: list[dict] | None
+    bookings: list[BookingOut]
 
 
 class TranscriptOut(BaseModel):
@@ -160,22 +188,81 @@ async def start_outbound_agent_call(
     return {"call_id": local_call_id, "provider": "exotel-livekit", **dial}
 
 
+def _filtered_calls(agency_id: str, business_id: str | None, outcome: str | None, q: str | None):
+    query = select(Call).where(Call.agency_id == agency_id)
+    if business_id is not None:
+        query = query.where(Call.business_id == business_id)
+    if outcome:
+        query = query.where(Call.outcome == outcome)
+    if q:
+        like = f"%{q}%"
+        query = query.where(
+            or_(Call.caller_number.ilike(like), Call.caller_name.ilike(like), Call.summary.ilike(like))
+        )
+    return query
+
+
+@router.get("/export")
+async def export_calls(
+    business_id: str | None = None,
+    outcome: str | None = None,
+    q: str | None = None,
+    db: Session = Depends(get_db),
+    current_agency: Agency = Depends(get_current_agency),
+):
+    rows = db.execute(
+        _filtered_calls(current_agency.id, business_id, outcome, q).order_by(desc(Call.started_at))
+    ).scalars()
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["started_at", "direction", "caller_name", "caller_number", "duration_sec", "outcome", "summary"])
+    for c in rows:
+        writer.writerow([
+            c.started_at.isoformat(), c.direction, c.caller_name or "", c.caller_number or "",
+            c.duration_sec if c.duration_sec is not None else "", c.outcome or "", c.summary or "",
+        ])
+    return Response(
+        out.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="calls.csv"'},
+    )
+
+
 @router.get("/", response_model=list[CallOut])
 async def list_calls(
     business_id: str | None = None,
+    outcome: str | None = None,
+    q: str | None = None,
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
     current_agency: Agency = Depends(get_current_agency),
 ):
-    query = select(Call).where(Call.agency_id == current_agency.id)
-    if business_id is not None:
-        query = query.where(Call.business_id == business_id)
+    query = _filtered_calls(current_agency.id, business_id, outcome, q)
 
     result = db.execute(
         query.order_by(desc(Call.started_at)).limit(limit).offset(offset)
     )
     return result.scalars().all()
+
+
+@router.get("/{call_id}", response_model=CallDetailOut)
+async def get_call(
+    call_id: str,
+    db: Session = Depends(get_db),
+    current_agency: Agency = Depends(get_current_agency),
+):
+    call = db.execute(
+        select(Call).where(Call.id == call_id, Call.agency_id == current_agency.id)
+    ).scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+    # Live agent writes {content}, the dashboard reads {text}.
+    transcript = [
+        {"role": t.get("role"), "text": t.get("text") or t.get("content") or ""}
+        for t in call.transcript or []
+    ] if call.transcript is not None else None
+    return {**call.__dict__, "transcript": transcript, "bookings": call.bookings}
 
 
 @router.get("/{call_id}/transcript", response_model=TranscriptOut)

@@ -1,5 +1,5 @@
 """
-Template Loader — loads niche preset JSON files from backend/templates/.
+Template Loader — serves niche presets from app/template_data.py.
 
 Usage:
     from app.templates import get_template, list_templates
@@ -11,16 +11,14 @@ Templates provide:
 - sample_faq (pre-populated FAQ entries)
 """
 
-import json
-from pathlib import Path
 from typing import Optional
 
-_TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+from app.template_data import TEMPLATES
 
 
 def list_templates() -> list[str]:
     """Return all available template keys."""
-    return [f.stem for f in sorted(_TEMPLATES_DIR.glob("*.json"))]
+    return sorted(TEMPLATES)
 
 
 def get_template(key: str) -> Optional[dict]:
@@ -28,12 +26,7 @@ def get_template(key: str) -> Optional[dict]:
     Load a template by key (e.g. 'restaurant', 'dental').
     Returns None if template not found.
     """
-    path = _TEMPLATES_DIR / f"{key}.json"
-    if not path.exists():
-        path = _TEMPLATES_DIR / "custom.json"
-    if not path.exists():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    return TEMPLATES.get(key) or TEMPLATES.get("custom")
 
 
 def render_system_prompt(template_key: str, agent_name: str, business_name: str) -> str:

@@ -9,9 +9,9 @@ import structlog
 
 from app.core.config import get_settings
 from app.core.database import engine, Base
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
-from app.api import agencies, businesses, calls, webhooks, numbers, workflows
+from app.api import agencies, businesses, calls, webhooks, numbers, workflows, receptionist
 from app.models.agency import Agency
 from app.models import Contact, FlowVersion, Campaign  # noqa: F401
 
@@ -22,6 +22,8 @@ settings = get_settings()
 def init_db(db_engine) -> None:
     """Create tables and the single OSS agency. Idempotent; runs on boot (uvicorn) or cold start (Workers)."""
     Base.metadata.create_all(db_engine)
+    if db_engine.dialect.name in ("sqlite", "cloudflare_d1"):
+        add_missing_columns(db_engine)
     # ponytail: one shared agency until real auth lands (see deps.get_current_agency).
     with Session(db_engine) as session:
         if not session.get(Agency, settings.dev_agency_id):
@@ -30,6 +32,19 @@ def init_db(db_engine) -> None:
             )
             session.commit()
             logger.info("Bootstrapped agency", agency_id=settings.dev_agency_id)
+
+
+def add_missing_columns(db_engine) -> None:
+    """create_all never alters existing tables (e.g. the prod D1 db), so ADD COLUMN what the models gained."""
+    with db_engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            have = {row[1] for row in conn.execute(text(f'PRAGMA table_info("{table.name}")'))}
+            for col in table.columns:
+                if have and col.name not in have:
+                    ddl = f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col.type.compile(db_engine.dialect)}'
+                    if col.server_default is not None:
+                        ddl += f" DEFAULT {col.server_default.arg.text}"
+                    conn.execute(text(ddl))
 
 
 @asynccontextmanager
@@ -65,6 +80,7 @@ def create_app() -> FastAPI:
     app.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
     app.include_router(numbers.router, prefix="/api/v1/numbers", tags=["numbers"])
     app.include_router(workflows.router, prefix="/api/v1", tags=["workflows"])
+    app.include_router(receptionist.router, prefix="/api/v1", tags=["receptionist"])
     app.add_api_route("/health", health)
     return app
 

@@ -5,6 +5,8 @@ Business (client) management — create and configure clients for an agency.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
+from datetime import datetime
+from typing import Literal
 from pydantic import BaseModel
 import uuid
 
@@ -13,6 +15,8 @@ from app.models.agency import Agency
 from app.models.business import Business, AgentConfig
 from app.templates import get_template, render_system_prompt, get_sample_faq
 from app.api.deps import get_current_agency
+from app.api.workflows import owned_business
+from app.core.agent_data import normalize_faq, normalize_services
 
 router = APIRouter()
 
@@ -25,6 +29,13 @@ class BusinessCreate(BaseModel):
     timezone: str = "America/New_York"
 
 
+class BusinessUpdate(BaseModel):
+    name: str | None = None
+    vertical: str | None = None
+    timezone: str | None = None
+    plan: Literal["starter", "pro", "agency"] | None = None
+
+
 class AgentConfigUpdate(BaseModel):
     agent_name: str | None = None
     voice_id: str | None = None
@@ -33,6 +44,13 @@ class AgentConfigUpdate(BaseModel):
     faq: list | None = None
     system_prompt_override: str | None = None  # Custom prompt (Pro feature)
     flow_data: dict | None = None
+    greeting: str | None = None
+    transfer_number: str | None = None
+    website_url: str | None = None
+    knowledge_text: str | None = None
+    take_messages: bool | None = None
+    booking_enabled: bool | None = None
+    notify_email: str | None = None
 
 
 class BusinessOut(BaseModel):
@@ -43,7 +61,9 @@ class BusinessOut(BaseModel):
     phone_number: str | None
     telephony_provider: str
     timezone: str
+    plan: str
     active: bool
+    created_at: datetime
     has_config: bool
 
     class Config:
@@ -61,6 +81,13 @@ class AgentConfigOut(BaseModel):
     services: list | None
     faq: list | None
     flow_data: dict | None
+    greeting: str | None
+    transfer_number: str | None
+    website_url: str | None
+    knowledge_text: str | None
+    take_messages: bool
+    booking_enabled: bool
+    notify_email: str | None
 
     class Config:
         from_attributes = True
@@ -90,7 +117,7 @@ async def create_business(
         agent_name=agent_name,
         business_name=payload.name,
     )
-    sample_faq = get_sample_faq(payload.vertical)
+    sample_faq = normalize_faq(get_sample_faq(payload.vertical))
 
     config = AgentConfig(
         business_id=business.id,
@@ -150,6 +177,21 @@ async def get_business(
     return {**business.__dict__, "has_config": has_config}
 
 
+@router.patch("/{business_id}", response_model=BusinessOut)
+async def update_business(
+    business_id: str,
+    payload: BusinessUpdate,
+    db: Session = Depends(get_db),
+    current_agency: Agency = Depends(get_current_agency),
+):
+    business = await owned_business(db, current_agency.id, business_id)
+    for field, value in payload.model_dump(exclude_none=True).items():
+        setattr(business, field, value)
+    db.commit()
+    db.refresh(business)
+    return {**business.__dict__, "has_config": True}
+
+
 @router.get("/{business_id}/config", response_model=AgentConfigOut)
 async def get_agent_config(business_id: str, db: Session = Depends(get_db)):
     result = db.execute(
@@ -185,6 +227,10 @@ async def update_agent_config(
     # Apply updates
     update_data = payload.model_dump(exclude_none=True)
     custom_prompt = update_data.pop("system_prompt_override", None)
+    if "faq" in update_data:
+        update_data["faq"] = normalize_faq(update_data["faq"])
+    if "services" in update_data:
+        update_data["services"] = normalize_services(update_data["services"])
 
     for field, value in update_data.items():
         setattr(config, field, value)
