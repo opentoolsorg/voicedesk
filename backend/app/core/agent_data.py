@@ -14,11 +14,12 @@ def normalize_faq(items) -> list[dict]:
 
 
 def normalize_services(items) -> list[dict]:
-    """Plain strings become {name}; dicts keep their fields."""
-    out = []
+    """Plain strings become {name}; dicts keep their fields; duplicate names keep the first."""
+    out, seen = [], set()
     for s in items or []:
         if isinstance(s, str):
             s = {"name": s}
-        if isinstance(s, dict) and s.get("name"):
+        if isinstance(s, dict) and s.get("name") and s["name"] not in seen:
+            seen.add(s["name"])
             out.append(s)
     return out

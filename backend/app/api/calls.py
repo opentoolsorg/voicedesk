@@ -4,6 +4,7 @@ Call log endpoints — list calls, get transcripts, get stats.
 
 import csv
 import io
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
@@ -202,6 +203,14 @@ def _filtered_calls(agency_id: str, business_id: str | None, outcome: str | None
     return query
 
 
+def _csv_safe(value) -> str:
+    # Spreadsheets run cells starting with these as formulas; caller ID/summary are caller-controlled.
+    text = "" if value is None else str(value)
+    if text[:1] in ("=", "+", "-", "@", "\t", "\r") and not re.fullmatch(r"\+\d{6,15}", text):
+        return "'" + text
+    return text
+
+
 @router.get("/export")
 async def export_calls(
     business_id: str | None = None,
@@ -218,8 +227,8 @@ async def export_calls(
     writer.writerow(["started_at", "direction", "caller_name", "caller_number", "duration_sec", "outcome", "summary"])
     for c in rows:
         writer.writerow([
-            c.started_at.isoformat(), c.direction, c.caller_name or "", c.caller_number or "",
-            c.duration_sec if c.duration_sec is not None else "", c.outcome or "", c.summary or "",
+            c.started_at.isoformat(), c.direction, _csv_safe(c.caller_name), _csv_safe(c.caller_number),
+            c.duration_sec if c.duration_sec is not None else "", c.outcome or "", _csv_safe(c.summary),
         ])
     return Response(
         out.getvalue(),

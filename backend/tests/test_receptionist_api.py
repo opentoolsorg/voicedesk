@@ -100,3 +100,12 @@ def test_init_db_adds_missing_columns():
             cols = {r[1] for r in conn.execute(text("PRAGMA table_info(businesses)"))}
             assert {"plan", "timezone", "created_at"} <= cols
             assert conn.execute(text("SELECT plan FROM businesses")).scalar() == "starter"
+
+
+def test_csv_export_escapes_formulas():
+    from app.api.calls import _csv_safe
+
+    assert _csv_safe('=HYPERLINK("http://evil")').startswith("'=")
+    assert _csv_safe("@SUM(A1)") == "'@SUM(A1)"
+    assert _csv_safe("+14155550100") == "+14155550100"  # real E.164 numbers stay readable
+    assert _csv_safe(None) == ""
