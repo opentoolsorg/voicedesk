@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useBusinessId, useResource } from "./ui";
+import ThemeToggle from "../components/ThemeToggle";
 
 const links = [
   ["Overview", "", BarChart3],
@@ -202,14 +203,17 @@ function Workspace({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
+            <div className="flex shrink-0 items-center gap-2">
+              <ThemeToggle />
             <Link
-              href="/dashboard"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-theme-border bg-theme-surface px-2.5 py-1.5 text-xs font-medium text-theme-label shadow-sm hover:bg-theme-surface-muted hover:text-theme-fg transition-colors"
-            >
-              <ArrowLeft size={13} aria-hidden="true" />
-              <span className="hidden sm:inline">All businesses</span>
-              <span className="sm:hidden">Workspaces</span>
-            </Link>
+                href="/dashboard"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-theme-border bg-theme-surface px-2.5 py-1.5 text-xs font-medium text-theme-label shadow-sm hover:bg-theme-surface-muted hover:text-theme-fg transition-colors"
+              >
+                <ArrowLeft size={13} aria-hidden="true" />
+                <span className="hidden sm:inline">All businesses</span>
+                <span className="sm:hidden">Workspaces</span>
+              </Link>
+            </div>
           </div>
 
           {/* Mobile Navigation Drawer */}

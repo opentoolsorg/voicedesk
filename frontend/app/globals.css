@@ -39,8 +39,8 @@
     --theme-label: #71717a;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
+  /* Dark is opt-in via the dashboard theme toggle; light is the default. */
+  :root[data-theme="dark"] {
       --theme-bg: #09090b;
       --theme-fg: #f4f4f5;
       --theme-surface: #121215;
@@ -73,7 +73,6 @@
       --theme-input-placeholder: #71717a;
 
       --theme-label: #a1a1aa;
-    }
   }
 
   body {

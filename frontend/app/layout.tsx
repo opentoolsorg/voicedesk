@@ -14,9 +14,15 @@ export const metadata: Metadata = {
   },
 };
 
+// Runs before paint so a saved dark choice never flashes light. Dashboard only; the landing page stays light.
+const themeScript = `try{if(location.pathname.startsWith("/dashboard")){var t=localStorage.getItem("voicedesk-theme")||"light";if(t==="system")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}}catch(e){}`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={GeistSans.variable}>
+    <html lang="en" className={GeistSans.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="bg-[#fafafa] text-zinc-900 min-h-[100dvh] font-sans antialiased selection:bg-emerald-500/30">
         {children}
       </body>
