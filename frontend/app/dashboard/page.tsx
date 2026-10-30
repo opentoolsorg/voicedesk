@@ -2,21 +2,26 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
-  Robot,
-  Buildings,
+  ArrowUpRight,
+  Building2,
+  Check,
+  Headphones,
+  Mic,
   PhoneCall,
-  MagnifyingGlass,
-  Sparkle,
+  Plus,
+  RefreshCw,
+  Search,
+  Settings2,
+  Sparkles,
   Users,
-} from "@phosphor-icons/react";
+} from "lucide-react";
 import { api, type Business, type Call, type Lead } from "@/lib/api";
+import { apiDate } from "./[id]/ui";
+import ThemeToggle from "./components/ThemeToggle";
 
-/* Hallmark · genre: modern-minimal · macrostructure: Stat-Led · theme: Coral · enrichment: Tier C */
-
-const LEADS: Lead[] = [
+const DEMO_LEADS: Lead[] = [
   {
     id: "lead-1",
     name: "Maya Chen",
@@ -25,7 +30,7 @@ const LEADS: Lead[] = [
     location: "San Francisco, CA",
     score: 94,
     status: "queued",
-    summary: "Interested in after-hours call coverage and appointment reminders. Asked for pricing and setup speed.",
+    summary: "Interested in 24/7 call coverage and automated appointment booking.",
   },
   {
     id: "lead-2",
@@ -35,7 +40,7 @@ const LEADS: Lead[] = [
     location: "New York, NY",
     score: 89,
     status: "called",
-    summary: "Confirmed they miss weekend calls. Wants a branded voice agent with dashboard visibility for staff.",
+    summary: "Asked about weekend emergency triage and SMS booking confirmations.",
   },
   {
     id: "lead-3",
@@ -48,329 +53,556 @@ const LEADS: Lead[] = [
   },
 ];
 
-function callStatusLabel(status: Lead["status"]) {
-  if (status === "queued") return "Queued for auto-call";
-  if (status === "called") return "Call completed";
-  return "New lead";
+function formatDate(value: string) {
+  const date = apiDate(value);
+  return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleString();
 }
 
-// Framer Motion Variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  show: { 
-    opacity: 1, 
-    y: 0,
-    transition: { type: "spring" as const, stiffness: 100, damping: 20 }
-  },
-};
+function LoadingRows() {
+  return (
+    <div role="status" aria-label="Loading workspace data" className="space-y-3 p-5">
+      <span className="sr-only">Loading workspace data</span>
+      {[1, 2, 3].map((row) => (
+        <div key={row} className="h-16 rounded-lg bg-theme-surface-muted animate-pulse" />
+      ))}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [calls, setCalls] = useState<Call[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [businessLoading, setBusinessLoading] = useState(true);
+  const [callLoading, setCallLoading] = useState(true);
+  const [businessError, setBusinessError] = useState("");
+  const [callError, setCallError] = useState("");
+  const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState("");
-  const [leads, setLeads] = useState<Lead[]>(LEADS);
+  const [sort, setSort] = useState("recent");
+  const [demoQuery, setDemoQuery] = useState("");
+  const [leads, setLeads] = useState(DEMO_LEADS);
+  const [demoNotice, setDemoNotice] = useState("");
 
   useEffect(() => {
-    Promise.all([api.businesses.list(), api.calls.list()])
-      .then(([biz, callLog]) => {
-        setBusinesses(biz);
-        setCalls(callLog);
+    let cancelled = false;
+    setBusinessLoading(true);
+    setCallLoading(true);
+    setBusinessError("");
+    setCallError("");
+
+    api.businesses
+      .list()
+      .then((data) => {
+        if (!cancelled) setBusinesses(data);
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch(() => {
+        if (!cancelled) {
+          setBusinesses([]);
+          setBusinessError("Could not load businesses. Check the API connection and try again.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setBusinessLoading(false);
+      });
+
+    api.calls
+      .list(undefined, { limit: 50 })
+      .then((data) => {
+        if (!cancelled) setCalls(data);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCalls([]);
+          setCallError("Could not load calls. Check the API connection and try again.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCallLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refresh]);
+
+  const filteredBusinesses = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return businesses
+      .filter((business) =>
+        [business.name, business.vertical ?? "", business.phone_number ?? ""].some((value) =>
+          value.toLowerCase().includes(term)
+        )
+      )
+      .sort((a, b) => {
+        if (sort === "phone") {
+          const phoneOrder = Number(Boolean(b.phone_number)) - Number(Boolean(a.phone_number));
+          if (phoneOrder) return phoneOrder;
+        }
+        if (sort === "recent") {
+          const recentOrder = (apiDate(b.created_at).getTime() || 0) - (apiDate(a.created_at).getTime() || 0);
+          if (recentOrder) return recentOrder;
+        }
+        return a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
+      });
+  }, [businesses, query, sort]);
 
   const filteredLeads = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return leads;
+    const term = demoQuery.trim().toLowerCase();
     return leads.filter((lead) =>
-      [lead.name, lead.company, lead.location].some((value) => value.toLowerCase().includes(term)),
+      [lead.name, lead.company, lead.location].some((value) =>
+        value.toLowerCase().includes(term)
+      )
     );
-  }, [leads, query]);
+  }, [leads, demoQuery]);
 
-  const stats = useMemo(
-    () => ({
-      businesses: businesses.length,
-      queuedLeads: leads.filter((lead) => lead.status === "queued").length,
-      completedCalls: leads.filter((lead) => lead.status === "called").length,
-      summaries: leads.filter((lead) => lead.summary).length,
-    }),
-    [businesses, leads],
+  const recentCalls = useMemo(
+    () =>
+      [...calls]
+        .sort((a, b) => (Date.parse(b.started_at) || 0) - (Date.parse(a.started_at) || 0))
+        .slice(0, 5),
+    [calls]
   );
 
-  const recentSummaries = useMemo(() => leads.filter((lead) => lead.summary).slice(0, 3), [leads]);
-
-  function queueLead(leadId: string) {
+  function queueDemoLead(id: string) {
     setLeads((current) =>
-      current.map((lead) =>
-        lead.id === leadId
-          ? {
-              ...lead,
-              status: "queued",
-              summary:
-                lead.summary ?? "Queued for automatic outreach. Agent will place the call, qualify the lead, and log the outcome here.",
-            }
-          : lead,
-      ),
+      current.map((lead) => (lead.id === id ? { ...lead, status: "queued" } : lead))
     );
+    setDemoNotice("Added to the local demo queue. No live phone call placed.");
   }
 
   return (
-    <motion.div 
-      className="mx-auto max-w-[1400px] px-4 py-12 sm:px-6 lg:px-8"
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-    >
-      <motion.div variants={itemVariants} className="surface mb-10 overflow-hidden p-8 sm:p-12 relative">
-        <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none text-theme-btn-accent">
-           <Robot size={320} weight="duotone" />
-        </div>
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between relative z-10">
-          <div className="max-w-3xl">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
-              className="inline-flex items-center gap-2 rounded-full border border-theme-border-muted bg-theme-surface-glass backdrop-blur-md px-4 py-2 text-sm font-medium text-theme-fg shadow-sm"
+    <main className="min-h-screen bg-theme-bg text-theme-fg selection:bg-emerald-700/20">
+      {/* Top Header */}
+      <header className="sticky top-0 z-20 border-b border-theme-border bg-theme-surface/95 backdrop-blur-md">
+        <nav
+          aria-label="Workspace navigation"
+          className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-3.5 sm:px-8"
+        >
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 text-base font-semibold tracking-tight text-theme-fg"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-theme-btn-primary text-theme-btn-primary-fg shadow-sm">
+              <Mic size={16} aria-hidden="true" />
+            </span>
+            <span>VoiceDesk</span>
+            <span className="hidden text-xs text-theme-label sm:inline">
+              / Workspaces
+            </span>
+          </Link>
+          <div className="flex items-center gap-2 text-xs text-theme-label">
+            <ThemeToggle />
+            <span className="hidden rounded-md border border-theme-border bg-theme-surface-muted px-2 py-1 font-mono text-[11px] sm:inline-flex">
+              Self-hosted
+            </span>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-theme-fg hover:bg-theme-surface-muted transition-colors"
             >
-              <Sparkle weight="fill" className="h-4 w-4 text-theme-btn-accent" />
-              AgentDesk Operator Cockpit
-            </motion.div>
-            <h1 className="mt-6 text-4xl font-semibold tracking-[-0.02em] text-theme-fg sm:text-6xl leading-[1.1]">
-              Search leads, trigger calls automatically, and review summaries.
+              Public site
+              <ArrowUpRight size={13} aria-hidden="true" />
+            </Link>
+          </div>
+        </nav>
+      </header>
+
+      {/* Main Body */}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-10 space-y-8">
+        {/* Title and CTA */}
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
+              Workspace management
+            </span>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-theme-fg sm:text-4xl">
+              Your voice operations
             </h1>
-            <p className="mt-6 max-w-2xl text-base leading-relaxed text-theme-label">
-              This dashboard is shaped like an outbound AI calling workspace. Find leads, queue automatic outreach, and review what the agent learned after each call.
+            <p className="mt-1.5 max-w-xl text-sm text-theme-label leading-relaxed">
+              Manage configured AI receptionist business profiles and review incoming call records.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link href="/dashboard/new" className="btn-secondary inline-flex items-center justify-center gap-2">
-              <Buildings weight="bold" className="h-4 w-4" /> Add Workspace
-            </Link>
-            <Link href="/" className="btn-primary inline-flex items-center justify-center gap-2">
-              View Site
-              <ArrowRight weight="bold" className="h-4 w-4" />
-            </Link>
-          </div>
+          <Link
+            href="/dashboard/new"
+            className="btn-primary self-start sm:self-auto gap-2"
+          >
+            <Plus size={16} aria-hidden="true" />
+            Create business workspace
+          </Link>
         </div>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-4">
-          <div className="surface-muted p-6 transition-colors hover:border-theme-border">
-            <p className="text-sm font-medium text-theme-label">Workspaces</p>
-            <p className="mt-3 font-mono text-3xl font-semibold text-theme-fg">{stats.businesses}</p>
-          </div>
-          <div className="surface-muted p-6 transition-colors hover:border-theme-border">
-            <p className="text-sm font-medium text-theme-label">Queued Calls</p>
-            <p className="mt-3 font-mono text-3xl font-semibold text-theme-fg">{stats.queuedLeads}</p>
-          </div>
-          <div className="surface-muted p-6 transition-colors hover:border-theme-border">
-            <p className="text-sm font-medium text-theme-label">Completed Calls</p>
-            <p className="mt-3 font-mono text-3xl font-semibold text-theme-fg">{stats.completedCalls}</p>
-          </div>
-          <div className="surface-muted p-6 transition-colors hover:border-theme-border">
-            <p className="text-sm font-medium text-theme-label">Logged Summaries</p>
-            <p className="mt-3 font-mono text-3xl font-semibold text-theme-fg">{stats.summaries}</p>
-          </div>
-        </div>
-      </motion.div>
+        {/* Live Workspace Metrics Banner */}
+        <section
+          aria-label="Live workspace metrics"
+          className="grid grid-cols-1 divide-y divide-theme-border overflow-hidden rounded-xl border border-theme-border bg-theme-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0 shadow-sm"
+        >
+          {[
+            {
+              label: "Active workspaces",
+              value: businesses.length,
+              error: businessError,
+              loading: businessLoading,
+              note: "Active businesses returned by API",
+            },
+            {
+              label: "Live receptionists",
+              value: businesses.filter((b) => b.has_config && b.phone_number).length,
+              error: businessError,
+              loading: businessLoading,
+              note: "Configuration and phone number present",
+            },
+            {
+              label: "Call logs · latest 50",
+              value: calls.length,
+              error: callError,
+              loading: callLoading,
+              note: "Up to 50 recent records, not lifetime total",
+            },
+          ].map((metric) => (
+            <div key={metric.label} className="p-5 sm:p-6">
+              <p className="text-xs font-semibold uppercase tracking-wider text-theme-label">
+                {metric.label}
+              </p>
+              <p
+                className="mt-2 text-3xl font-bold tracking-tight text-theme-fg tabular-nums"
+                aria-label={`${metric.label}: ${
+                  metric.loading ? "loading" : metric.error ? "unavailable" : metric.value
+                }`}
+              >
+                {metric.loading || metric.error ? "—" : metric.value}
+              </p>
+              <p className="mt-1 text-[11px] text-theme-label">
+                {metric.loading
+                  ? "Loading API data…"
+                  : metric.error
+                  ? "Data unavailable"
+                  : metric.note}
+              </p>
+            </div>
+          ))}
+        </section>
 
-      {loading && (
-        <motion.p variants={itemVariants} className="text-sm text-theme-label">Loading metrics...</motion.p>
-      )}
-      
-      {error && (
-        <motion.div variants={itemVariants} className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-          Failed to load operator view. {error}
-        </motion.div>
-      )}
+        {/* Error banner if connection issues */}
+        {(businessError || callError) && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"
+          >
+            <p>Some workspace data is currently unavailable. Shown records may be partial.</p>
+            <button
+              disabled={businessLoading && callLoading}
+              onClick={() => setRefresh((v) => v + 1)}
+              className="btn-secondary !text-xs !py-1 gap-1.5"
+            >
+              <RefreshCw size={13} aria-hidden="true" />
+              {businessLoading && callLoading ? "Retrying…" : "Retry connection"}
+            </button>
+          </div>
+        )}
 
-      {!loading && !error && (
-        <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="space-y-8">
-            <motion.div variants={itemVariants} className="surface p-8">
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between mb-8">
-                <div>
-                  <p className="text-sm font-medium text-theme-btn-accent uppercase tracking-widest">Lead Search</p>
-                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-theme-fg">Prospects ready for outreach</h2>
-                </div>
-                <div className="relative w-full sm:max-w-sm">
-                  <MagnifyingGlass weight="bold" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-theme-input-placeholder" />
-                  <input
-                    className="input pl-11 rounded-full"
-                    placeholder="Search company, lead, or city..."
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                </div>
+        {/* 2-column layout: Businesses & Recent calls */}
+        <div className="grid items-start gap-6 lg:grid-cols-[1.25fr_1fr]">
+          {/* Businesses List */}
+          <section
+            aria-labelledby="business-title"
+            className="card !p-0 overflow-hidden shadow-sm"
+          >
+            <div className="border-b border-theme-border/60 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <h2
+                  id="business-title"
+                  className="text-base font-semibold tracking-tight text-theme-fg flex items-center gap-2"
+                >
+                  <Building2 size={16} className="text-emerald-800 dark:text-emerald-400" />
+                  Businesses
+                </h2>
+                <span className="font-mono text-xs text-theme-label">
+                  {businesses.length} total
+                </span>
               </div>
 
-              <div className="grid gap-4">
-                <AnimatePresence>
-                  {filteredLeads.map((lead) => (
-                    <motion.div 
-                      key={lead.id} 
-                      layout
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.98 }}
-                      transition={{ type: "spring", stiffness: 100, damping: 20 }}
-                      className="surface-muted p-5 hover:bg-theme-surface transition-colors border border-transparent hover:border-theme-border-muted"
+              <div className="relative mt-3">
+                <Search
+                  size={15}
+                  aria-hidden="true"
+                  className="absolute left-3.5 top-3 text-theme-label"
+                />
+                <input
+                  id="business-search"
+                  aria-label="Search business workspaces"
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Filter by name, industry, or phone number…"
+                  className="input !pl-9 !text-xs"
+                />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-theme-label">
+                <span>{filteredBusinesses.length} of {businesses.length} active</span>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="business-sort">Sort by</label>
+                  <select
+                    id="business-sort"
+                    value={sort}
+                    onChange={(event) => setSort(event.target.value)}
+                    className="rounded-md border border-theme-border bg-theme-surface px-2 py-1.5 text-xs text-theme-fg"
+                  >
+                    <option value="recent">Recently created</option>
+                    <option value="name">Name A–Z</option>
+                    <option value="phone">Has phone number</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {businessLoading ? (
+              <LoadingRows />
+            ) : businessError ? (
+              <p className="p-6 text-xs text-theme-label">{businessError}</p>
+            ) : businesses.length === 0 ? (
+              <div className="p-8 text-center">
+                <Building2 size={32} className="mx-auto text-emerald-700 mb-2 opacity-80" />
+                <h3 className="text-sm font-semibold text-theme-fg">No businesses added yet</h3>
+                <p className="mt-1 text-xs text-theme-label">
+                  Create your first business workspace to configure an agent persona.
+                </p>
+                <Link href="/dashboard/new" className="btn-primary !text-xs mt-4 gap-1.5">
+                  <Plus size={14} />
+                  Add business
+                </Link>
+              </div>
+            ) : filteredBusinesses.length === 0 ? (
+              <div className="p-8 text-center text-xs text-theme-label">
+                <p>No businesses match “{query}”.</p>
+                <button
+                  onClick={() => setQuery("")}
+                  className="mt-2 text-emerald-800 underline font-medium"
+                >
+                  Clear search
+                </button>
+              </div>
+            ) : (
+              <div className="divide-y divide-theme-border">
+                {filteredBusinesses.map((b) => (
+                  <div
+                    key={b.id}
+                    className="group relative flex items-center justify-between gap-4 p-4 transition-colors hover:bg-theme-surface-muted/40"
+                  >
+                    <Link
+                      href={`/dashboard/${b.id}`}
+                      className="absolute inset-0 z-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-700"
                     >
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-3">
-                            <p className="text-lg font-semibold text-theme-fg">{lead.company}</p>
-                            <span className="rounded-full border border-theme-btn-accent/20 bg-theme-btn-accent/10 px-3 py-1 text-xs font-semibold text-theme-btn-accent">
-                              Score {lead.score}
+                      <span className="sr-only">Open {b.name} workspace</span>
+                    </Link>
+                    <div className="pointer-events-none relative z-10 min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="truncate text-sm font-semibold text-theme-fg group-hover:text-emerald-800 dark:group-hover:text-emerald-400">
+                          {b.name}
+                        </h3>
+                        {b.has_config && b.phone_number && (
+                          <span className="shrink-0 rounded-full border border-theme-border bg-theme-surface-muted px-2 py-0.5 text-[10px] font-medium text-theme-fg">
+                            Configured
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-xs text-theme-label capitalize">
+                        {b.vertical?.replaceAll("_", " ") ?? "General"} ·{" "}
+                        {b.phone_number ? (
+                          <span className="font-mono text-theme-fg">{b.phone_number}</span>
+                        ) : (
+                          <span className="italic">No phone line</span>
+                        )}
+                      </p>
+                      {(!b.phone_number || !b.has_config) && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {!b.phone_number && (
+                            <span className="rounded-full border border-theme-border bg-theme-surface-muted px-2 py-0.5 text-[10px] font-medium text-theme-label">
+                              Number missing
                             </span>
-                          </div>
-                          <p className="mt-2 text-sm text-theme-label font-medium">{lead.name} <span className="opacity-30 mx-1">•</span> {lead.location}</p>
-                          <p className="mt-1 font-mono text-sm opacity-60">{lead.phone}</p>
-                          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-theme-border-muted bg-theme-surface px-3 py-1 text-xs font-semibold uppercase tracking-wider text-theme-label">
-                            <div className={`h-1.5 w-1.5 rounded-full ${lead.status === 'new' ? 'bg-blue-500' : lead.status === 'queued' ? 'bg-amber-500' : 'bg-theme-btn-accent'}`} />
-                            {callStatusLabel(lead.status)}
-                          </div>
+                          )}
+                          {!b.has_config && (
+                            <span className="rounded-full border border-theme-border bg-theme-surface-muted px-2 py-0.5 text-[10px] font-medium text-theme-label">
+                              {b.has_config === false ? "Config incomplete" : "Config status unknown"}
+                            </span>
+                          )}
                         </div>
-
-                        <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-                          <button
-                            className="btn-accent"
-                            onClick={() => queueLead(lead.id)}
-                            disabled={lead.status !== "new"}
-                          >
-                            <PhoneCall weight="fill" className="mr-2 h-4 w-4" /> Auto Call
-                          </button>
-                          <Link href="/dashboard/new" className="btn-secondary text-xs">
-                            Create Workflow
-                          </Link>
-                        </div>
-                      </div>
-
-                      {lead.summary && (
-                        <motion.div 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          className="mt-6 rounded-[1rem] border border-theme-border-muted bg-theme-surface p-5 shadow-sm"
-                        >
-                          <div className="flex items-center gap-2 text-sm font-semibold text-theme-fg mb-3">
-                            <Robot weight="fill" className="h-5 w-5 text-theme-btn-accent" />
-                            Call Summary
-                          </div>
-                          <p className="text-sm leading-relaxed text-theme-label">{lead.summary}</p>
-                        </motion.div>
                       )}
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            </motion.div>
-
-            <motion.div variants={itemVariants} className="surface p-8">
-              <div className="flex items-center justify-between gap-3 mb-8">
-                <div>
-                  <p className="text-sm font-medium text-theme-btn-accent uppercase tracking-widest">Active Workspaces</p>
-                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-theme-fg">Businesses behind the engine</h2>
-                </div>
-                <span className="font-mono text-sm font-medium bg-theme-surface-muted border border-theme-border-muted text-theme-label px-3 py-1 rounded-full">{businesses.length} Total</span>
-              </div>
-
-              <div className="grid gap-4">
-                {businesses.map((b) => (
-                  <Link key={b.id} href={`/dashboard/${b.id}`} className="group block">
-                    <div className="surface-muted p-5 transition-all duration-300 hover:scale-[1.01] hover:border-theme-border hover:bg-theme-surface hover:shadow-md">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-lg font-semibold text-theme-fg transition-colors">{b.name}</p>
-                          <p className="mt-1 text-sm font-medium text-theme-label capitalize">{b.vertical} Workspace</p>
-                        </div>
-                        <div className="text-sm text-theme-label sm:text-right">
-                          <p className="font-mono font-medium text-theme-fg bg-theme-surface border border-theme-border-muted px-2 py-1 rounded w-fit sm:ml-auto">{b.phone_number ?? "No Number"}</p>
-                          <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-theme-label">
-                             <div className={`h-1.5 w-1.5 rounded-full ${b.active ? 'bg-theme-btn-accent animate-pulse' : 'bg-theme-border-muted'}`} />
-                             {b.active ? "Accepting Calls" : "Paused"}
-                          </div>
-                        </div>
-                      </div>
                     </div>
-                  </Link>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-
-          <div className="space-y-8">
-            <motion.div variants={itemVariants} className="surface p-8">
-              <div className="flex items-center gap-2 text-sm font-medium text-theme-btn-accent uppercase tracking-widest mb-2">
-                <Users weight="bold" className="h-4 w-4" />
-                Summary Feed
-              </div>
-              <h2 className="text-3xl font-semibold tracking-tight text-theme-fg mb-8">What the agent learned</h2>
-
-              <div className="space-y-4">
-                {recentSummaries.map((lead) => (
-                  <div key={lead.id} className="surface-muted p-5">
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                      <div>
-                        <p className="text-base font-semibold text-theme-fg">{lead.company}</p>
-                        <p className="mt-1 text-xs font-medium uppercase tracking-[0.1em] text-theme-label">{lead.name}</p>
-                      </div>
-                      <span className="rounded-full border border-theme-btn-accent/20 bg-theme-btn-accent/10 px-3 py-1 text-xs font-semibold text-theme-btn-accent">
-                        Processed
-                      </span>
+                    <div className="relative z-10 flex shrink-0 items-center gap-3">
+                      <Link
+                        href={`/dashboard/${b.id}/agent`}
+                        aria-label={`Settings for ${b.name}`}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-theme-border px-2.5 py-1.5 text-xs font-medium text-theme-fg transition-colors hover:bg-theme-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                      >
+                        <Settings2 size={14} aria-hidden="true" />
+                        <span>Settings</span>
+                      </Link>
+                      <ArrowUpRight
+                        size={16}
+                        aria-hidden="true"
+                        className="text-theme-label transition-colors group-hover:text-emerald-800 dark:group-hover:text-emerald-400"
+                      />
                     </div>
-                    <p className="text-sm leading-relaxed text-theme-label">{lead.summary}</p>
                   </div>
                 ))}
               </div>
-            </motion.div>
+            )}
+          </section>
 
-            <motion.div variants={itemVariants} className="surface p-8">
-              <p className="text-sm font-medium text-theme-btn-accent uppercase tracking-widest mb-2">Live Activity</p>
-              <h2 className="text-3xl font-semibold tracking-tight text-theme-fg mb-8">Recent Call Log</h2>
+          {/* Recent Calls */}
+          <section
+            aria-labelledby="calls-title"
+            className="card !p-0 overflow-hidden shadow-sm"
+          >
+            <div className="flex items-center justify-between border-b border-theme-border/60 p-5">
+              <div>
+                <h2
+                  id="calls-title"
+                  className="text-base font-semibold tracking-tight text-theme-fg flex items-center gap-2"
+                >
+                  <PhoneCall size={16} className="text-emerald-800 dark:text-emerald-400" />
+                  Recent calls
+                </h2>
+                <p className="mt-0.5 text-[11px] text-theme-label">Latest logged conversations</p>
+              </div>
+              <span className="font-mono text-xs text-theme-label">{recentCalls.length} logs</span>
+            </div>
 
-              {calls.length === 0 ? (
-                <div className="rounded-[1.5rem] border border-dashed border-theme-border-muted bg-theme-surface-muted px-6 py-12 text-center">
-                  <PhoneCall weight="duotone" className="mx-auto h-10 w-10 text-theme-border-muted mb-4" />
-                  <p className="text-base font-semibold text-theme-fg">No completed calls yet</p>
-                  <p className="mt-2 text-sm leading-relaxed text-theme-label max-w-xs mx-auto">
-                    Once outbound or inbound call flows are active, summaries will stream in here in real-time.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {calls.slice(0, 5).map((call) => (
-                    <div key={call.id} className="surface-muted p-4 hover:bg-theme-surface hover:border-theme-border transition-colors border border-transparent">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-mono text-sm font-medium text-theme-fg">{call.caller_number ?? "Unknown caller"}</p>
-                          <p className="mt-1 text-xs text-theme-label font-medium">{new Date(call.started_at).toLocaleString()}</p>
-                        </div>
-                        <span className="rounded-full bg-theme-surface border border-theme-border-muted px-3 py-1 text-xs font-semibold text-theme-label uppercase tracking-wider shadow-sm">
-                          {call.status.replace("_", " ")}
-                        </span>
-                      </div>
+            {callLoading ? (
+              <LoadingRows />
+            ) : callError ? (
+              <p className="p-6 text-xs text-theme-label">{callError}</p>
+            ) : recentCalls.length === 0 ? (
+              <div className="p-8 text-center text-xs text-theme-label">
+                No calls recorded yet across any workspace.
+              </div>
+            ) : (
+              <ul className="divide-y divide-theme-border">
+                {recentCalls.map((call) => (
+                  <li key={call.id} className="p-4 space-y-1">
+                    <Link
+                      href={`/dashboard/${call.business_id}/calls`}
+                      className="inline-flex max-w-full items-center gap-1 text-xs font-medium text-theme-fg underline underline-offset-2 hover:text-theme-label"
+                    >
+                      <span className="truncate">
+                        {businesses.find((business) => business.id === call.business_id)?.name ?? "Business unavailable"}
+                      </span>
+                      <span className="shrink-0">· View calls</span>
+                      <ArrowUpRight size={12} aria-hidden="true" className="shrink-0" />
+                    </Link>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs font-semibold text-theme-fg">
+                        {call.caller_name || call.caller_number || "Unknown caller"}
+                      </span>
+                      <span className="rounded border border-theme-border bg-theme-surface-muted px-1.5 py-0.5 text-[10px] font-medium uppercase text-theme-label">
+                        {call.status.replaceAll("_", " ")}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          </div>
+                    <p className="text-[11px] text-theme-label font-mono">
+                      {formatDate(call.started_at)}
+                      {call.duration_sec != null ? ` · ${call.duration_sec}s` : ""}
+                    </p>
+                    {call.outcome && (
+                      <p className="line-clamp-1 text-xs text-theme-label">{call.outcome}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
-      )}
-    </motion.div>
+
+        {/* Demo Leads Exploration */}
+        <section
+          aria-labelledby="demo-title"
+          className="border-t border-theme-border/60 pt-8 space-y-4"
+        >
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 id="demo-title" className="text-base font-semibold tracking-tight text-theme-fg">
+                  Example caller queue
+                </h2>
+                <span className="rounded-full border border-theme-border bg-theme-surface-muted px-2 py-0.5 text-[10px] font-semibold text-theme-label">
+                  Demo Leads
+                </span>
+              </div>
+              <p className="mt-1 max-w-xl text-xs text-theme-label leading-relaxed">
+                Sample caller profiles to test receptionist routing and call handling in your local session.
+              </p>
+            </div>
+
+            <div className="w-full sm:w-64">
+              <input
+                id="demo-search"
+                aria-label="Search demo leads"
+                type="search"
+                value={demoQuery}
+                onChange={(event) => setDemoQuery(event.target.value)}
+                placeholder="Search demo leads…"
+                className="input !text-xs"
+              />
+            </div>
+          </div>
+
+          {demoNotice && (
+            <p role="status" className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+              {demoNotice}
+            </p>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {filteredLeads.map((lead) => (
+              <article
+                key={lead.id}
+                className="card flex flex-col justify-between !p-4 transition-shadow hover:shadow-md"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-xs text-theme-fg">{lead.company}</span>
+                    <span className="rounded bg-theme-surface-muted px-1.5 py-0.5 font-mono text-[10px] text-theme-label">
+                      Score: {lead.score}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-theme-label">
+                    {lead.name} · {lead.location}
+                  </p>
+                  <p className="mt-1 font-mono text-xs text-theme-label">{lead.phone}</p>
+                  {lead.summary && (
+                    <p className="mt-3 text-xs leading-relaxed text-theme-label bg-theme-surface-muted/40 rounded p-2">
+                      {lead.summary}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={lead.status !== "new"}
+                  onClick={() => queueDemoLead(lead.id)}
+                  className="btn-secondary !text-xs !py-1.5 mt-4 w-full gap-1 disabled:opacity-50"
+                >
+                  {lead.status === "queued" ? (
+                    <>
+                      <Check size={12} className="text-emerald-600" aria-hidden="true" />
+                      In demo queue
+                    </>
+                  ) : lead.status === "called" ? (
+                    "Example call only"
+                  ) : (
+                    "Add to demo queue"
+                  )}
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="border-t border-theme-border/60 pt-5 text-xs text-theme-label flex flex-wrap justify-between gap-2">
+          <p>VoiceDesk · Open-source, production AI voice receptionists.</p>
+          <p>Self-hosted on Cloudflare Python Workers & D1.</p>
+        </footer>
+      </div>
+    </main>
   );
 }

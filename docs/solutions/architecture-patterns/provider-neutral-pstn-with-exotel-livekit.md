@@ -26,7 +26,7 @@ tags:
 
 ## Context
 
-AgentDesk originally treated Twilio as both the phone-number lifecycle and call-execution layer. That becomes restrictive for Indian/local-number deployments: an Exotel trial provides a verified ExoPhone and Voice Flow, while conversational calls still need a realtime media system such as LiveKit.
+VoiceDesk originally treated Twilio as both the phone-number lifecycle and call-execution layer. That becomes restrictive for Indian/local-number deployments: an Exotel trial provides a verified ExoPhone and Voice Flow, while conversational calls still need a realtime media system such as LiveKit.
 
 The durable boundary is therefore not “replace Twilio with Exotel.” It is a provider-neutral telephony layer that separates four concerns:
 
@@ -61,7 +61,7 @@ Treat provider callbacks as idempotent. The Exotel webhook accepts JSON or form 
 
 ## Why This Matters
 
-The carrier and realtime-agent layers have different regional, commercial, and operational constraints. Keeping them separate allows AgentDesk to use Exotel for Indian PSTN access, Twilio for an existing US installation, and LiveKit for the agent media path without rewriting business flows or notification jobs.
+The carrier and realtime-agent layers have different regional, commercial, and operational constraints. Keeping them separate allows VoiceDesk to use Exotel for Indian PSTN access, Twilio for an existing US installation, and LiveKit for the agent media path without rewriting business flows or notification jobs.
 
 It also makes trial limitations explicit. A normal personal SIM is not silently treated as an application-owned number; the configured ExoPhone is verified and attached deliberately. Provider-specific credentials remain in configuration, while the database stores stable `telephony_provider`, `provider_number_id`, and `provider_call_id` fields (`backend/app/models/business.py:16-23`, `backend/app/models/call.py:18-25`).
 

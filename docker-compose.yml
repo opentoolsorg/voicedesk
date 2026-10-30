@@ -1,9 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# AgentDesk — Docker Compose (local OSS quickstart)
+# VoiceDesk — Docker Compose (local OSS quickstart)
 #
 # ONE COMMAND, ZERO KEYS:
-#   git clone https://github.com/princepal9120/agentdesk.git
-#   cd agentdesk
+#   git clone https://github.com/princepal9120/voicedesk.git
+#   cd voicedesk
 #   make up
 #
 # That boots the API + dashboard at http://localhost:3000 with NO env file
@@ -29,11 +29,11 @@ services:
         required: false
     environment:
       # SQLite by default — no database container needed
-      DATABASE_URL: sqlite+aiosqlite:////app/data/agentdesk.db
+      DATABASE_URL: sqlite+aiosqlite:////app/data/voicedesk.db
       APP_ENV: development
     volumes:
       # Persist SQLite file across restarts
-      - agentdesk_data:/app/data
+      - voicedesk_data:/app/data
     command: >
       sh -c "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     healthcheck:
@@ -69,14 +69,14 @@ services:
       - path: ./backend/.env
         required: false
     environment:
-      DATABASE_URL: sqlite+aiosqlite:////app/data/agentdesk.db
+      DATABASE_URL: sqlite+aiosqlite:////app/data/voicedesk.db
       VOICE_MODE: ${VOICE_MODE:-demo}
     volumes:
-      - agentdesk_data:/app/data
+      - voicedesk_data:/app/data
     command: python run_agent.py
     depends_on:
       api:
         condition: service_healthy
 
 volumes:
-  agentdesk_data:
+  voicedesk_data:

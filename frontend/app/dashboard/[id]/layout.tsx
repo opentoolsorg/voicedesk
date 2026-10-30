@@ -1,3 +1,5 @@
+import Shell from "./Shell";
+
 export function generateStaticParams() {
   // ponytail: one placeholder so `output: export` can emit /dashboard/:id
   return [{ id: "_" }];
@@ -8,5 +10,5 @@ export default function BusinessLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return <Shell>{children}</Shell>;
 }

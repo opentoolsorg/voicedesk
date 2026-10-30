@@ -22,7 +22,7 @@ async def start_livekit_agent_call(
 ) -> dict[str, str]:
     """Create a room, attach metadata, and dial through an Exotel SIP trunk.
 
-    The LiveKit worker already runs the AgentDesk agent for newly populated
+    The LiveKit worker already runs the VoiceDesk agent for newly populated
     rooms.  The room metadata lets the existing entrypoint load the correct
     business configuration and speak the reminder.
     """

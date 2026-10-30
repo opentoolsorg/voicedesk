@@ -2,9 +2,13 @@
 Call log endpoints — list calls, get transcripts, get stats.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+import csv
+import io
+import re
+
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy.orm import Session
+from sqlalchemy import select, func, desc, or_
 from pydantic import BaseModel
 import uuid
 from datetime import datetime
@@ -22,16 +26,41 @@ class CallOut(BaseModel):
     id: str
     business_id: str
     twilio_call_sid: str | None
+    direction: str
     caller_number: str | None
+    caller_name: str | None
     duration_sec: int | None
     status: str
     outcome: str | None
     summary: str | None
+    recording_url: str | None
     started_at: datetime
     ended_at: datetime | None
 
     class Config:
         from_attributes = True
+
+
+class BookingOut(BaseModel):
+    id: str
+    business_id: str
+    call_id: str | None
+    customer_name: str | None
+    customer_phone: str | None
+    service: str | None
+    appointment_at: datetime | None
+    duration_min: int
+    status: str
+    notes: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CallDetailOut(CallOut):
+    transcript: list[dict] | None
+    bookings: list[BookingOut]
 
 
 class TranscriptOut(BaseModel):
@@ -69,12 +98,12 @@ class OutboundCallOut(BaseModel):
 @router.post("/outbound", response_model=OutboundCallOut, status_code=202)
 async def start_outbound_agent_call(
     payload: OutboundCallRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
     current_agency: Agency = Depends(get_current_agency),
 ):
     """Start an AI reminder call through the configured Exotel SIP trunk."""
 
-    result = await db.execute(
+    result = db.execute(
         select(Business).where(
             Business.id == payload.business_id,
             Business.agency_id == current_agency.id,
@@ -91,7 +120,7 @@ async def start_outbound_agent_call(
     try:
         flow = None
         if payload.flow_version_id:
-            flow_result = await db.execute(
+            flow_result = db.execute(
                 select(FlowVersion).where(
                     FlowVersion.id == payload.flow_version_id,
                     FlowVersion.business_id == business.id,
@@ -104,7 +133,7 @@ async def start_outbound_agent_call(
 
         contact = None
         if payload.contact_id:
-            contact = await db.get(Contact, payload.contact_id)
+            contact = db.get(Contact, payload.contact_id)
             if not contact or contact.business_id != business.id:
                 raise HTTPException(status_code=404, detail="Contact not found")
 
@@ -119,8 +148,8 @@ async def start_outbound_agent_call(
             status="dialing",
         )
         db.add(local_call)
-        await db.commit()
-        await db.refresh(local_call)
+        db.commit()
+        db.refresh(local_call)
         local_call_id = local_call.id
         dial = await start_livekit_agent_call(
             business_id=str(business.id),
@@ -137,54 +166,121 @@ async def start_outbound_agent_call(
         )
     except ValueError as exc:
         if local_call_id:
-            failed = await db.get(Call, local_call_id)
+            failed = db.get(Call, local_call_id)
             if failed:
                 failed.status = "failed"
                 failed.outcome = "invalid_request"
-                await db.commit()
+                db.commit()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
         if local_call_id:
-            failed = await db.get(Call, local_call_id)
+            failed = db.get(Call, local_call_id)
             if failed:
                 failed.status = "failed"
                 failed.outcome = "dial_failed"
-                await db.commit()
+                db.commit()
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     # The local call row was created before dialing; attach the provider id now.
-    saved_call = await db.get(Call, local_call_id)
+    saved_call = db.get(Call, local_call_id)
     if saved_call:
         saved_call.provider_call_id = dial.get("provider_call_id") or None
-        await db.commit()
+        db.commit()
     return {"call_id": local_call_id, "provider": "exotel-livekit", **dial}
+
+
+def _filtered_calls(agency_id: str, business_id: str | None, outcome: str | None, q: str | None):
+    query = select(Call).where(Call.agency_id == agency_id)
+    if business_id is not None:
+        query = query.where(Call.business_id == business_id)
+    if outcome:
+        query = query.where(Call.outcome == outcome)
+    if q:
+        like = f"%{q}%"
+        query = query.where(
+            or_(Call.caller_number.ilike(like), Call.caller_name.ilike(like), Call.summary.ilike(like))
+        )
+    return query
+
+
+def _csv_safe(value) -> str:
+    # Spreadsheets run cells starting with these as formulas; caller ID/summary are caller-controlled.
+    text = "" if value is None else str(value)
+    if text[:1] in ("=", "+", "-", "@", "\t", "\r") and not re.fullmatch(r"\+\d{6,15}", text):
+        return "'" + text
+    return text
+
+
+@router.get("/export")
+async def export_calls(
+    business_id: str | None = None,
+    outcome: str | None = None,
+    q: str | None = None,
+    db: Session = Depends(get_db),
+    current_agency: Agency = Depends(get_current_agency),
+):
+    rows = db.execute(
+        _filtered_calls(current_agency.id, business_id, outcome, q).order_by(desc(Call.started_at))
+    ).scalars()
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["started_at", "direction", "caller_name", "caller_number", "duration_sec", "outcome", "summary"])
+    for c in rows:
+        writer.writerow([
+            c.started_at.isoformat(), c.direction, _csv_safe(c.caller_name), _csv_safe(c.caller_number),
+            c.duration_sec if c.duration_sec is not None else "", c.outcome or "", _csv_safe(c.summary),
+        ])
+    return Response(
+        out.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="calls.csv"'},
+    )
 
 
 @router.get("/", response_model=list[CallOut])
 async def list_calls(
     business_id: str | None = None,
+    outcome: str | None = None,
+    q: str | None = None,
     limit: int = 50,
     offset: int = 0,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
     current_agency: Agency = Depends(get_current_agency),
 ):
-    query = select(Call).where(Call.agency_id == current_agency.id)
-    if business_id is not None:
-        query = query.where(Call.business_id == business_id)
+    query = _filtered_calls(current_agency.id, business_id, outcome, q)
 
-    result = await db.execute(
+    result = db.execute(
         query.order_by(desc(Call.started_at)).limit(limit).offset(offset)
     )
     return result.scalars().all()
 
 
+@router.get("/{call_id}", response_model=CallDetailOut)
+async def get_call(
+    call_id: str,
+    db: Session = Depends(get_db),
+    current_agency: Agency = Depends(get_current_agency),
+):
+    call = db.execute(
+        select(Call).where(Call.id == call_id, Call.agency_id == current_agency.id)
+    ).scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+    # Live agent writes {content}, the dashboard reads {text}.
+    transcript = [
+        {"role": t.get("role"), "text": t.get("text") or t.get("content") or ""}
+        for t in call.transcript or []
+    ] if call.transcript is not None else None
+    return {**call.__dict__, "transcript": transcript, "bookings": call.bookings}
+
+
 @router.get("/{call_id}/transcript", response_model=TranscriptOut)
 async def get_transcript(
     call_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
     current_agency: Agency = Depends(get_current_agency),
 ):
-    result = await db.execute(
+    result = db.execute(
         select(Call).where(Call.id == call_id, Call.agency_id == current_agency.id)
     )
     call = result.scalar_one_or_none()
@@ -203,7 +299,7 @@ async def get_transcript(
 async def get_call_stats(
     business_id: str,
     period: str = "month",  # week|month|all
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
     current_agency: Agency = Depends(get_current_agency),
 ):
     from datetime import timedelta
@@ -217,7 +313,7 @@ async def get_call_stats(
         since = datetime(2020, 1, 1)
 
     # Total + answered
-    total_result = await db.execute(
+    total_result = db.execute(
         select(func.count()).where(
             Call.agency_id == current_agency.id,
             Call.business_id == business_id,
@@ -226,7 +322,7 @@ async def get_call_stats(
     )
     total = total_result.scalar() or 0
 
-    answered_result = await db.execute(
+    answered_result = db.execute(
         select(func.count()).where(
             Call.agency_id == current_agency.id,
             Call.business_id == business_id,
@@ -237,7 +333,7 @@ async def get_call_stats(
     answered = answered_result.scalar() or 0
 
     # Bookings
-    bookings_result = await db.execute(
+    bookings_result = db.execute(
         select(func.count()).select_from(Booking, Call).where(
             Booking.business_id == business_id,
             Booking.call_id == Call.id,
@@ -248,7 +344,7 @@ async def get_call_stats(
     bookings = bookings_result.scalar() or 0
 
     # Avg duration
-    avg_result = await db.execute(
+    avg_result = db.execute(
         select(func.avg(Call.duration_sec)).where(
             Call.agency_id == current_agency.id,
             Call.business_id == business_id,

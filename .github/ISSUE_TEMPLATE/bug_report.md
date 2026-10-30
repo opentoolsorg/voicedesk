@@ -1,6 +1,6 @@
 ---
 name: "🐛 Bug Report"
-about: Create a report to help us improve AgentDesk
+about: Create a report to help us improve VoiceDesk
 title: "[BUG] "
 labels: bug
 assignees: ""

@@ -2,7 +2,7 @@
 Minimal security helpers used by the OSS backend.
 
 This module intentionally keeps only the utilities that match the current
-open-source AgentDesk config surface.
+open-source VoiceDesk config surface.
 """
 
 import base64
@@ -32,7 +32,7 @@ def verify_twilio_signature(
     expected_sig = base64.b64encode(
         hmac.new(token.encode(), data.encode(), hashlib.sha1).digest()
     ).decode()
-    return hmac.compare_digest(signature, expected_sig)
+    return hmac.compare_digest(signature.encode(), expected_sig.encode())
 
 
 def generate_confirmation_code() -> str:

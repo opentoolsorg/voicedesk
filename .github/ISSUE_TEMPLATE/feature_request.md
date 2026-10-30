@@ -1,6 +1,6 @@
 ---
 name: "💡 Feature Request"
-about: Suggest an idea or enhancement for AgentDesk
+about: Suggest an idea or enhancement for VoiceDesk
 title: "[FEATURE] "
 labels: enhancement
 assignees: ""

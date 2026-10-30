@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import structlog
 
+from app.core.agent_data import normalize_faq, normalize_services
+
 logger = structlog.get_logger()
 
 
@@ -270,7 +272,7 @@ async def answer_faq(
     Args:
         question: The customer's question
     """
-    faq: list = ctx.userdata.get("faq", [])
+    faq = normalize_faq(ctx.userdata.get("faq"))
 
     if not faq:
         return "I don't have that information handy. Can I take your number and have the team follow up?"
@@ -289,7 +291,7 @@ async def list_services(
     ctx: RunContext,
 ) -> str:
     """List available services at the business."""
-    services: list = ctx.userdata.get("services", [])
+    services = normalize_services(ctx.userdata.get("services"))
 
     if not services:
         return "We offer a range of services. I can tell you more about what you're looking for."

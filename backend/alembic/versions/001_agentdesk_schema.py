@@ -1,4 +1,4 @@
-"""AgentDesk initial schema
+"""VoiceDesk initial schema
 
 Revision ID: 001_agentdesk
 Revises:

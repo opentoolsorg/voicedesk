@@ -1,4 +1,4 @@
-# AgentDesk — White-Label AI Voice Agent Platform
+# VoiceDesk — White-Label AI Voice Agent Platform
 ## Product Requirements Document v2.0
 *Created: 2026-03-15 | Updated: 2026-03-15 | Author: Prince Pal*
 *Inspired by: BookedIn.ai ($56K MRR) — simpler, faster to build*
@@ -7,7 +7,7 @@
 
 ## 1. Executive Summary
 
-AgentDesk is a B2B2C platform where AI freelancers and small agencies deploy white-labeled voice agents for their clients (salons, restaurants, repair shops, etc.) without building the infra themselves.
+VoiceDesk is a B2B2C platform where AI freelancers and small agencies deploy white-labeled voice agents for their clients (salons, restaurants, repair shops, etc.) without building the infra themselves.
 
 **Competitor:** BookedIn.ai ($56K MRR) — they have a full no-code visual builder.
 **Our edge:** Simpler (template-based), cheaper, faster to start. Target the solo dev/freelancer who just wants something that works.
@@ -39,7 +39,7 @@ AgentDesk is a B2B2C platform where AI freelancers and small agencies deploy whi
 ## 3. How It Works
 
 ```
-Agency signs up on AgentDesk
+Agency signs up on VoiceDesk
   → Creates a workspace (white-labeled)
   → Adds a client (business name, vertical, hours)
   → Picks a template (Salon / Restaurant / General)
@@ -133,7 +133,7 @@ Agency (Organization in Clerk)
 
 **White-label features (Pro+):**
 - Custom domain (clientdashboard.theiragency.com)
-- Remove "AgentDesk" branding
+- Remove "VoiceDesk" branding
 - Custom logo + colors in client portal
 
 ---
@@ -146,7 +146,7 @@ CREATE TABLE agencies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clerk_org_id TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
-  subdomain TEXT UNIQUE, -- for white-label: agency.agentdesk.app
+  subdomain TEXT UNIQUE, -- for white-label: agency.voicedesk.app
   custom_domain TEXT,    -- for white-label: portal.theiragency.com
   branding JSONB,        -- {logo_url, primary_color, company_name}
   stripe_customer_id TEXT,
@@ -262,7 +262,7 @@ Tools: `take_message`, `schedule_callback`, `answer_faq`
 ## 8. Folder Structure
 
 ```
-agentdesk/
+voicedesk/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py
@@ -354,8 +354,8 @@ agentdesk/
 - [ ] Stripe subscription
 
 ### Phase 3 — White-label + Polish (Week 3-4)
-- [ ] Custom subdomain (agency.agentdesk.app)
-- [ ] Remove AgentDesk branding on Pro
+- [ ] Custom subdomain (agency.voicedesk.app)
+- [ ] Remove VoiceDesk branding on Pro
 - [ ] Custom logo + colors
 - [ ] Onboarding wizard
 - [ ] SMS confirmation after booking
@@ -375,8 +375,8 @@ agentdesk/
 
 **Positioning vs BookedIn:**
 - BookedIn: Feature-rich, no-code builder, $299/mo+
-- AgentDesk: Simple, works out of the box, $49/mo starter
-- "AgentDesk if you want to start today. BookedIn if you want to build a full agency OS."
+- VoiceDesk: Simple, works out of the box, $49/mo starter
+- "VoiceDesk if you want to start today. BookedIn if you want to build a full agency OS."
 
 ---
 

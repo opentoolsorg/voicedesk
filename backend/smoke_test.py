@@ -5,7 +5,7 @@ from app.core.config import get_settings
 
 def main() -> None:
     settings = get_settings()
-    print("AgentDesk backend smoke test")
+    print("VoiceDesk backend smoke test")
     print(f"app_env={settings.app_env}")
     print(f"voice_mode={settings.voice_mode}")
     print(f"voice_provider={settings.voice_provider}")

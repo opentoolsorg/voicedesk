@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     # Database — defaults to local SQLite for zero-install dev experience
     # Set DATABASE_URL=postgresql+asyncpg://... for production
-    database_url: str = "sqlite+aiosqlite:///./agentdesk.db"
+    database_url: str = "sqlite+aiosqlite:///./voicedesk.db"
 
     # Redis — optional, used for rate limiting in production only
     redis_url: str = "redis://localhost:6379/0"
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     exotel_sip_hostname: str = ""
     exotel_sip_username: str = ""
     exotel_sip_password: str = ""
-    livekit_agent_name: str = "agentdesk-voice"
+    livekit_agent_name: str = "voicedesk-voice"
     livekit_sip_outbound_trunk_id: str = ""
     public_base_url: str = "http://localhost:8000"
 

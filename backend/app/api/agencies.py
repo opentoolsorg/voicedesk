@@ -3,7 +3,7 @@ Agency CRUD for OSS/local deployment.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy import select
 from pydantic import BaseModel
 import uuid
@@ -43,10 +43,10 @@ class AgencyOut(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/", response_model=AgencyOut, status_code=status.HTTP_201_CREATED)
-async def create_agency(payload: AgencyCreate, db: AsyncSession = Depends(get_db)):
+async def create_agency(payload: AgencyCreate, db: Session = Depends(get_db)):
     """Create an agency record for self-hosted setups."""
     if payload.subdomain:
-        existing = await db.execute(
+        existing = db.execute(
             select(Agency).where(Agency.subdomain == payload.subdomain)
         )
         if existing.scalar_one_or_none():
@@ -54,8 +54,8 @@ async def create_agency(payload: AgencyCreate, db: AsyncSession = Depends(get_db
 
     agency = Agency(**payload.model_dump())
     db.add(agency)
-    await db.commit()
-    await db.refresh(agency)
+    db.commit()
+    db.refresh(agency)
     return agency
 
 
@@ -65,8 +65,8 @@ async def get_me(agency: Agency = Depends(get_current_agency)):
 
 
 @router.get("/{agency_id}", response_model=AgencyOut)
-async def get_agency(agency_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Agency).where(Agency.id == agency_id))
+async def get_agency(agency_id: str, db: Session = Depends(get_db)):
+    result = db.execute(select(Agency).where(Agency.id == agency_id))
     agency = result.scalar_one_or_none()
     if not agency:
         raise HTTPException(status_code=404, detail="Agency not found")
@@ -75,9 +75,9 @@ async def get_agency(agency_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.patch("/{agency_id}", response_model=AgencyOut)
 async def update_agency(
-    agency_id: str, payload: AgencyUpdate, db: AsyncSession = Depends(get_db)
+    agency_id: str, payload: AgencyUpdate, db: Session = Depends(get_db)
 ):
-    result = await db.execute(select(Agency).where(Agency.id == agency_id))
+    result = db.execute(select(Agency).where(Agency.id == agency_id))
     agency = result.scalar_one_or_none()
     if not agency:
         raise HTTPException(status_code=404, detail="Agency not found")
@@ -85,6 +85,6 @@ async def update_agency(
     for field, value in payload.model_dump(exclude_none=True).items():
         setattr(agency, field, value)
 
-    await db.commit()
-    await db.refresh(agency)
+    db.commit()
+    db.refresh(agency)
     return agency

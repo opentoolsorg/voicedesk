@@ -9,7 +9,7 @@ RUN pip install uv
 COPY pyproject.toml .
 
 # Install dependencies
-RUN uv pip install --system -e .
+RUN uv pip install --system -e ".[server]"
 
 # Copy source
 COPY . .

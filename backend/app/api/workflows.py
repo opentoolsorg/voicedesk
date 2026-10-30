@@ -7,7 +7,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from agent.flow_runtime import normalize_flow
 from app.api.deps import get_current_agency
@@ -38,8 +38,8 @@ class CampaignCreate(BaseModel):
     contact_ids: list[str] = Field(min_length=1, max_length=500)
 
 
-async def owned_business(db: AsyncSession, agency_id: str, business_id: str) -> Business:
-    result = await db.execute(
+async def owned_business(db: Session, agency_id: str, business_id: str) -> Business:
+    result = db.execute(
         select(Business).where(
             Business.id == business_id,
             Business.agency_id == agency_id,
@@ -55,11 +55,11 @@ async def owned_business(db: AsyncSession, agency_id: str, business_id: str) -> 
 @router.get("/businesses/{business_id}/flows")
 async def list_flows(
     business_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
 ):
     await owned_business(db, agency.id, business_id)
-    result = await db.execute(
+    result = db.execute(
         select(FlowVersion).where(FlowVersion.business_id == business_id).order_by(FlowVersion.created_at.desc())
     )
     return result.scalars().all()
@@ -69,7 +69,7 @@ async def list_flows(
 async def create_flow(
     business_id: str,
     payload: FlowCreate,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
 ):
     await owned_business(db, agency.id, business_id)
@@ -78,7 +78,7 @@ async def create_flow(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    result = await db.execute(
+    result = db.execute(
         select(FlowVersion).where(FlowVersion.business_id == business_id).order_by(FlowVersion.version.desc())
     )
     latest = result.scalars().first()
@@ -92,14 +92,14 @@ async def create_flow(
         active=True,
     )
     db.add(db_flow)
-    await db.flush()
-    await db.execute(
+    db.flush()
+    db.execute(
         AgentConfig.__table__.update()
         .where(AgentConfig.business_id == business_id)
         .values(active_flow_version_id=db_flow.id, flow_data=flow)
     )
-    await db.commit()
-    await db.refresh(db_flow)
+    db.commit()
+    db.refresh(db_flow)
     return db_flow
 
 
@@ -107,7 +107,7 @@ async def create_flow(
 async def create_contact(
     business_id: str,
     payload: ContactCreate,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
 ):
     await owned_business(db, agency.id, business_id)
@@ -122,19 +122,19 @@ async def create_contact(
         extra_data=payload.extra_data,
     )
     db.add(contact)
-    await db.commit()
-    await db.refresh(contact)
+    db.commit()
+    db.refresh(contact)
     return contact
 
 
 @router.get("/businesses/{business_id}/contacts")
 async def list_contacts(
     business_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
 ):
     await owned_business(db, agency.id, business_id)
-    result = await db.execute(
+    result = db.execute(
         select(Contact).where(Contact.business_id == business_id, Contact.active.is_(True)).order_by(Contact.created_at.desc())
     )
     return result.scalars().all()
@@ -144,11 +144,11 @@ async def list_contacts(
 async def create_campaign(
     business_id: str,
     payload: CampaignCreate,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
 ):
     await owned_business(db, agency.id, business_id)
-    flow_result = await db.execute(
+    flow_result = db.execute(
         select(FlowVersion).where(
             FlowVersion.id == payload.flow_version_id,
             FlowVersion.business_id == business_id,
@@ -158,7 +158,7 @@ async def create_campaign(
     flow = flow_result.scalar_one_or_none()
     if not flow:
         raise HTTPException(status_code=404, detail="Active flow not found")
-    contact_result = await db.execute(
+    contact_result = db.execute(
         select(Contact).where(
             Contact.business_id == business_id,
             Contact.id.in_(payload.contact_ids),
@@ -176,19 +176,19 @@ async def create_campaign(
         status="draft",
     )
     db.add(campaign)
-    await db.commit()
-    await db.refresh(campaign)
+    db.commit()
+    db.refresh(campaign)
     return {"campaign": campaign, "contacts": contacts}
 
 
 @router.post("/campaigns/{campaign_id}/start", status_code=status.HTTP_202_ACCEPTED)
 async def start_campaign(
     campaign_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
 ):
     """Start the MVP campaign sequentially; a queue can replace this later."""
-    result = await db.execute(
+    result = db.execute(
         select(Campaign, Business, FlowVersion)
         .join(Business, Business.id == Campaign.business_id)
         .join(FlowVersion, FlowVersion.id == Campaign.flow_version_id)
@@ -206,12 +206,12 @@ async def start_campaign(
         raise HTTPException(status_code=422, detail="Campaign has no active contacts")
 
     campaign.status = "running"
-    await db.commit()
+    db.commit()
     results = []
     from app.services.livekit_telephony import start_livekit_agent_call
 
     for contact_id in contact_ids:
-        contact = await db.get(Contact, contact_id)
+        contact = db.get(Contact, contact_id)
         call = Call(
             business_id=business.id,
             agency_id=business.agency_id,
@@ -224,8 +224,8 @@ async def start_campaign(
             status="dialing",
         )
         db.add(call)
-        await db.commit()
-        await db.refresh(call)
+        db.commit()
+        db.refresh(call)
         try:
             dial = await start_livekit_agent_call(
                 business_id=str(business.id),
@@ -242,8 +242,8 @@ async def start_campaign(
             call.status = "failed"
             call.outcome = "dial_failed"
             results.append({"call_id": call.id, "contact_id": contact.id, "status": "failed", "error": str(exc)})
-        await db.commit()
+        db.commit()
 
     campaign.status = "completed"
-    await db.commit()
+    db.commit()
     return {"campaign_id": campaign.id, "status": campaign.status, "results": results}
