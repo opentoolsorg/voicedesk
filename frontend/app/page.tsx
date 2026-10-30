@@ -1,5 +1,7 @@
 "use client";
 
+import { InteractiveArchitectureDiagram } from "./components/InteractiveArchitectureDiagram";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -479,49 +481,9 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Full ASCII Architecture Blueprint */}
-            <div className="mt-10 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8 shadow-sm">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4 font-mono">
-                Full Telephony & Analytics Flowchart
-              </p>
-              <pre className="overflow-x-auto font-mono text-xs leading-relaxed text-zinc-800 sm:text-sm">
-{`Customer Handset (PSTN / Mobile)
-        │
-        ▼
-Carrier Gateway (Twilio PSTN / Exotel SIP Trunk)
-        │
-        ▼  [Opus Audio Packets over WebRTC]
-LiveKit Media Engine (Voice Worker Runtime)
-        │
-        ├──────────────────────────┐
-        ▼                          ▼
-Speech-to-Text Stream         Interruption Monitor
-(Deepgram / Sarvam Bulbul)    (Zero-latency Barge-in)
-        │                          │
-        ▼                          ▼
-FastAPI Conversation Orchestrator
-        │
-        ├──────────────────────────┬──────────────────────────┐
-        ▼                          ▼                          ▼
-System Prompt & Knowledge     Function Calling Tools     Telephony Controls
-(Custom Business Preset)      (Calendar, CRM, SMS)      (SIP Warm Transfer)
-        │                          │                          │
-        ▼                          ▼                          ▼
-Text-to-Speech Engine ◄─────── LLM Response ◄───────── External API Data
-(Cartesia / Sarvam Saaras)     (OpenAI / Claude / 30B)
-        │
-        ▼  [Audio Stream Dispatched]
-LiveKit Outbound Audio Track
-        │
-        ▼
-Carrier Egress ──► Handset Audio Speaker
-        │
-        ▼  [Call End Webhook]
-FastAPI Management Plane (Pyodide Worker on Cloudflare / Local Uvicorn)
-        │
-        ▼
-D1 Database / SQLite Storage (Audio Recordings, Turn Transcripts, Leads)`}
-              </pre>
+            {/* Visual Interactive Architecture Flow */}
+            <div className="mt-10">
+              <InteractiveArchitectureDiagram />
             </div>
           </div>
         </section>
