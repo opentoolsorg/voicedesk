@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="bg-[#fafafa] text-zinc-900 min-h-[100dvh] font-sans antialiased selection:bg-emerald-500/30">
+      <body className="bg-theme-bg text-theme-fg min-h-[100dvh] font-sans antialiased selection:bg-emerald-500/30">
         {children}
       </body>
     </html>

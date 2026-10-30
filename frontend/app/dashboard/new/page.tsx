@@ -38,8 +38,9 @@ import AgentFields, {
   type AgentDraft,
 } from "../components/AgentFields";
 import TestChat from "../components/TestChat";
+import ThemeToggle from "../components/ThemeToggle";
 
-const STEPS = ["Business profile", "Knowledge base", "Call handling", "Test & Launch"];
+const STEPS = ["Business profile", "Knowledge base", "Call handling", "Test & connect"];
 
 const VERTICAL_PRESETS: Record<
   string,
@@ -59,7 +60,7 @@ const VERTICAL_PRESETS: Record<
     agent: "Aria",
     icon: Stethoscope,
     greeting:
-      "Thanks for calling Northline Dental! I can schedule routine cleanings, emergency exams, or verify insurance coverage. How can I help today?",
+      "Thanks for calling {businessName}! I can schedule routine cleanings, emergency exams, or verify insurance coverage. How can I help today?",
     services:
       "Dental Cleaning (60 min)\nEmergency Toothache Exam (30 min)\nTeeth Whitening Consultation (45 min)",
     faq: [
@@ -80,7 +81,7 @@ const VERTICAL_PRESETS: Record<
     agent: "Bella",
     icon: Coffee,
     greeting:
-      "Good afternoon, Osteria Bella! I can book your dining table, share today's chef specials, or take private event inquiries.",
+      "Good afternoon, {businessName}! I can book your dining table, share today's chef specials, or take private event inquiries.",
     services:
       "Dinner Reservation (90 min)\nPrivate Dining Booking (120 min)\nChef Tasting Table (120 min)",
     faq: [
@@ -101,7 +102,7 @@ const VERTICAL_PRESETS: Record<
     agent: "Max",
     icon: Home,
     greeting:
-      "Hello, Skyline Properties! Are you calling regarding one of our active property listings or looking for a home valuation?",
+      "Hello, {businessName}! Are you calling regarding one of our active property listings or looking for a home valuation?",
     services:
       "Property Walkthrough (45 min)\nSeller Consultation (60 min)\nBuyer Pre-Qualification Call (30 min)",
     faq: [
@@ -123,7 +124,7 @@ const VERTICAL_PRESETS: Record<
     agent: "Chloe",
     icon: Scissors,
     greeting:
-      "Hi there, Radiance Studio! I can schedule your haircut, color consultation, or spa treatment. Who are you hoping to see?",
+      "Hi there, {businessName}! I can schedule your haircut, color consultation, or spa treatment. Who are you hoping to see?",
     services:
       "Haircut & Blowout (60 min)\nBalayage & Color (120 min)\nHydrating Facial (60 min)",
     faq: [
@@ -139,7 +140,7 @@ const VERTICAL_PRESETS: Record<
     agent: "Dave",
     icon: Wrench,
     greeting:
-      "Thanks for calling Summit Auto Care! I can book routine maintenance, brake inspections, or check diagnostic repair status.",
+      "Thanks for calling {businessName}! I can book routine maintenance, brake inspections, or check diagnostic repair status.",
     services:
       "Oil Change & Inspection (45 min)\nBrake System Diagnostic (60 min)\nAC & Heating Check (45 min)",
     faq: [
@@ -156,7 +157,7 @@ const VERTICAL_PRESETS: Record<
     agent: "Nova",
     icon: ShoppingBag,
     greeting:
-      "Thanks for calling Horizon Goods! I can look up your tracking number, start a return, or answer sizing questions.",
+      "Thanks for calling {businessName}! I can look up your tracking number, start a return, or answer sizing questions.",
     services:
       "Order Status Lookup (10 min)\nReturn & Exchange Authorization (15 min)",
     faq: [
@@ -172,7 +173,7 @@ const VERTICAL_PRESETS: Record<
     agent: "Sam",
     icon: Users,
     greeting:
-      "Hello, Talent Operations! Are you calling to check on an active job application or complete an interview phone screen?",
+      "Hello, {businessName}! Are you calling to check on an active job application or complete an interview phone screen?",
     services:
       "Candidate Screening (20 min)\nInterview Availability Check (15 min)",
     faq: [
@@ -188,7 +189,7 @@ const VERTICAL_PRESETS: Record<
     desc: "Inbound answering, office hours, customer inquiries, callbacks",
     agent: "Alex",
     icon: Building2,
-    greeting: "Thanks for calling! How can I help you today?",
+    greeting: "Thanks for calling {businessName}! How can I help you today?",
     services: "Consultation Call (30 min)\nGeneral Customer Inquiry (15 min)",
     faq: [
       {
@@ -212,6 +213,11 @@ interface Draft {
   step: number;
 }
 
+function presetGreeting(vertical: string, name: string) {
+  const preset = VERTICAL_PRESETS[vertical] || VERTICAL_PRESETS.general;
+  return preset.greeting.replace("{businessName}", () => name.trim() || "our team");
+}
+
 const INITIAL: Draft = {
   name: "",
   vertical: "dental",
@@ -219,7 +225,7 @@ const INITIAL: Draft = {
   agent: {
     ...DEFAULT_AGENT,
     agent_name: VERTICAL_PRESETS.dental.agent,
-    greeting: VERTICAL_PRESETS.dental.greeting,
+    greeting: presetGreeting("dental", ""),
     services: VERTICAL_PRESETS.dental.services,
     faq: VERTICAL_PRESETS.dental.faq,
   },
@@ -411,53 +417,60 @@ export default function NewBusiness() {
     }
   }
 
-  const activePreset = VERTICAL_PRESETS[draft.vertical] || VERTICAL_PRESETS.general;
   const servicesList = draft.agent.services.split("\n").filter(Boolean);
   const openDaysCount = Object.values(draft.agent.business_hours).filter(
     (h) => !h.closed
   ).length;
 
   return (
-    <main className="min-h-screen bg-[#f8f9f6] text-zinc-900 selection:bg-emerald-500/30">
+    <main className="min-h-screen bg-theme-bg text-theme-fg selection:bg-emerald-500/30">
       {/* Top Header */}
-      <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/95 backdrop-blur-md">
+      <header className="sticky top-0 z-20 border-b border-theme-border bg-theme-surface/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-8">
           <Link
             href="/"
-            className="flex items-center gap-2.5 text-base font-semibold tracking-tight text-zinc-950"
+            className="flex items-center gap-2.5 text-base font-semibold tracking-tight text-theme-fg"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-900 text-white shadow-sm">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-900 text-theme-btn-accent-fg shadow-sm">
               <Mic size={15} aria-hidden="true" />
             </span>
             <span>VoiceDesk</span>
-            <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+            <span className="hidden rounded border border-theme-border bg-theme-surface-muted px-1.5 py-0.5 text-[10px] font-medium text-theme-label sm:inline">
               Setup
             </span>
           </Link>
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-600 shadow-sm hover:bg-zinc-50 hover:text-zinc-950 transition-colors"
-          >
-            <ArrowLeft size={13} aria-hidden="true" />
-            <span>Dashboard</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link href="/dashboard" className="btn-secondary !text-xs !px-2.5 !py-1.5 gap-1.5">
+              <ArrowLeft size={13} aria-hidden="true" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Link>
+          </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-8 sm:py-10 space-y-8">
         {/* Stepper with estimated time */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-theme-label">
             <span className="flex items-center gap-2">
-              <span className="text-emerald-900 font-bold">Step {draft.step + 1} of 4</span>
+              <span className="text-theme-fg font-bold">Step {draft.step + 1} of 4</span>
               <span>·</span>
-              <span className="text-zinc-400">about 5 min</span>
+              <span className="text-theme-label">about 5 min</span>
             </span>
-            <span className="font-mono text-emerald-800">
+            <span className="font-mono text-theme-fg">
               {Math.round(((draft.step + 1) / STEPS.length) * 100)}% Complete
             </span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200/80">
+          <div
+            role="progressbar"
+            aria-label="Setup progress"
+            aria-valuemin={0}
+            aria-valuemax={STEPS.length}
+            aria-valuenow={draft.step + 1}
+            aria-valuetext={`Step ${draft.step + 1} of ${STEPS.length}: ${STEPS[draft.step]}`}
+            className="h-2 w-full overflow-hidden rounded-full bg-theme-border"
+          >
             <div
               className="h-full bg-emerald-700 transition-all duration-300 rounded-full"
               style={{ width: `${((draft.step + 1) / STEPS.length) * 100}%` }}
@@ -478,34 +491,35 @@ export default function NewBusiness() {
                 aria-current={isCurrent ? "step" : undefined}
                 className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-xs transition-all ${
                   isCurrent
-                    ? "border-emerald-700 bg-emerald-50/70 text-emerald-950 font-semibold shadow-sm"
+                    ? "border-theme-input-border-focus bg-theme-surface-muted text-theme-fg font-semibold shadow-sm"
                     : isCompleted
-                    ? "border-emerald-200 bg-emerald-50/40 text-emerald-900"
-                    : "border-zinc-200 bg-white/70 text-zinc-500"
+                    ? "border-theme-border-muted bg-theme-surface-muted text-theme-fg"
+                    : "border-theme-border bg-theme-surface/70 text-theme-label"
                 }`}
               >
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
                     isCurrent
-                      ? "bg-emerald-900 text-white"
+                      ? "bg-emerald-900 text-theme-btn-accent-fg"
                       : isCompleted
-                      ? "bg-emerald-600 text-white"
-                      : "border border-zinc-300 bg-white text-zinc-500"
+                      ? "bg-emerald-600 text-theme-btn-accent-fg"
+                      : "border border-theme-input-border-hover bg-theme-surface text-theme-label"
                   }`}
                 >
                   {isCompleted ? <Check size={13} /> : index + 1}
                 </span>
                 <span className="truncate">{step}</span>
+                {isCompleted && <span className="sr-only">Completed</span>}
               </li>
             );
           })}
         </ol>
 
-        {/* 2-Column: Main Setup Form & Live Agent Preview */}
+        {/* 2-Column: Main Setup Form & Agent Preview */}
         <div className="grid items-start gap-8 lg:grid-cols-[1.35fr_0.85fr]">
           {/* Main Form Area */}
           {!ready ? (
-            <div className="card animate-pulse py-12 text-center text-xs text-zinc-500" role="status">
+            <div className="card animate-pulse py-12 text-center text-xs text-theme-label" role="status">
               Loading draft state…
             </div>
           ) : (
@@ -515,15 +529,15 @@ export default function NewBusiness() {
                   {/* Step 0: Business Basics & Visual Preset Picker */}
                   {draft.step === 0 && (
                     <div className="space-y-5">
-                      <div className="border-b border-zinc-200 pb-3">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
+                      <div className="border-b border-theme-border pb-3">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-theme-fg">
                           Step 1
                         </span>
-                        <h2 className="mt-1 text-xl font-bold tracking-tight text-zinc-950">
+                        <h2 className="mt-1 text-xl font-bold tracking-tight text-theme-fg">
                           Choose an industry template
                         </h2>
-                        <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
-                          Each preset includes battle-tested greetings, booking logic, and sample FAQs.
+                        <p className="mt-1 text-xs text-theme-label leading-relaxed">
+                          Each preset includes a starter greeting, services, and sample FAQs. Review and replace examples before taking calls.
                         </p>
                       </div>
 
@@ -537,46 +551,46 @@ export default function NewBusiness() {
                             <button
                               key={v}
                               type="button"
+                              aria-pressed={isSelected}
                               onClick={() => {
                                 const p = VERTICAL_PRESETS[v];
                                 setDraft({
                                   ...draft,
                                   vertical: v,
-                                  name: draft.name || (v === "dental" ? "Northline Dental" : p.label),
                                   agent: {
                                     ...draft.agent,
                                     agent_name: p.agent,
-                                    greeting: p.greeting,
+                                    greeting: presetGreeting(v, draft.name),
                                     services: p.services,
                                     faq: p.faq,
                                   },
                                 });
                               }}
-                              className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all ${
+                              className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-ring ${
                                 isSelected
-                                  ? "border-emerald-700 bg-emerald-50/80 ring-2 ring-emerald-700/20 shadow-sm"
-                                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50"
+                                  ? "border-theme-input-border-focus bg-theme-surface-muted ring-2 ring-theme-ring shadow-sm"
+                                  : "border-theme-border bg-theme-surface hover:border-theme-input-border-hover hover:bg-theme-surface-muted"
                               }`}
                             >
                               <span
                                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                                   isSelected
-                                    ? "bg-emerald-900 text-white"
-                                    : "border border-zinc-200 bg-zinc-100 text-zinc-700"
+                                    ? "bg-emerald-900 text-theme-btn-accent-fg"
+                                    : "border border-theme-border bg-theme-surface-muted text-theme-fg"
                                 }`}
                               >
                                 <Icon size={18} aria-hidden="true" />
                               </span>
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-xs font-bold text-zinc-950">
+                                  <span className="text-xs font-bold text-theme-fg">
                                     {preset.label}
                                   </span>
-                                  <span className="text-[10px] font-medium text-emerald-800">
+                                  <span className="text-[10px] font-medium text-theme-fg">
                                     Agent: {preset.agent}
                                   </span>
                                 </div>
-                                <p className="mt-0.5 line-clamp-2 text-[11px] text-zinc-500 leading-relaxed">
+                                <p className="mt-0.5 line-clamp-2 text-[11px] text-theme-label leading-relaxed">
                                   {preset.desc}
                                 </p>
                               </div>
@@ -585,27 +599,39 @@ export default function NewBusiness() {
                         })}
                       </div>
 
-                      <div className="space-y-4 pt-2 border-t border-zinc-200">
+                      <div className="space-y-4 pt-2 border-t border-theme-border">
                         <div>
-                          <label className="label">Business name</label>
+                          <label className="label" htmlFor="business-name">Business name</label>
                           <input
+                            id="business-name"
                             className="input"
                             autoComplete="organization"
                             required
                             value={draft.name}
                             onChange={(event) =>
-                              setDraft({ ...draft, name: event.target.value })
+                              setDraft({
+                                ...draft,
+                                name: event.target.value,
+                                agent: {
+                                  ...draft.agent,
+                                  greeting:
+                                    draft.agent.greeting === presetGreeting(draft.vertical, draft.name)
+                                      ? presetGreeting(draft.vertical, event.target.value)
+                                      : draft.agent.greeting,
+                                },
+                              })
                             }
-                            placeholder="e.g. Northline Dental"
+                            placeholder="Your business name"
                           />
-                          <p className="mt-1 text-[11px] text-zinc-500">
+                          <p className="mt-1 text-[11px] text-theme-label">
                             The name your receptionist uses in greetings and booking confirmations.
                           </p>
                         </div>
 
                         <div>
-                          <label className="label">Operating timezone</label>
+                          <label className="label" htmlFor="business-timezone">Operating timezone</label>
                           <select
+                            id="business-timezone"
                             className="input text-xs"
                             value={draft.timezone}
                             onChange={(event) =>
@@ -654,18 +680,18 @@ export default function NewBusiness() {
                   {draft.step === 3 && (
                     <div className="space-y-6">
                       {/* Celebration Card */}
-                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 shadow-sm space-y-3">
-                        <div className="flex items-center gap-2.5 text-emerald-950">
+                      <div className="rounded-2xl border border-theme-border-muted bg-theme-surface-muted p-5 shadow-sm space-y-3">
+                        <div className="flex items-center gap-2.5 text-theme-fg">
                           <CheckCircle2 size={22} className="text-emerald-700 shrink-0" />
                           <h2 className="text-lg font-bold tracking-tight">
-                            Setup Complete: Receptionist is live!
+                            Workspace saved — ready to test
                           </h2>
                         </div>
-                        <p className="text-xs text-emerald-900 leading-relaxed">
+                        <p className="text-xs text-theme-fg leading-relaxed">
                           Your workspace has been created. The AI receptionist has loaded{" "}
                           <strong>{draft.name || "your business"}</strong> with{" "}
                           <strong>{servicesList.length} services</strong> and{" "}
-                          <strong>{draft.agent.faq.length} FAQs</strong>.
+                          <strong>{draft.agent.faq.length} FAQs</strong>. Review sample content, connect a phone line, and test an inbound call before relying on it for customers.
                         </p>
 
                         <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -691,19 +717,19 @@ export default function NewBusiness() {
                         </div>
 
                         {seedNotice && (
-                          <p role="status" className="text-xs font-medium text-emerald-900">
+                          <p role="status" className="text-xs font-medium text-theme-fg">
                             {seedNotice}
                           </p>
                         )}
                       </div>
 
                       {/* Phone Connection Choice */}
-                      <div className="space-y-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-                        <div className="border-b border-zinc-200 pb-2">
-                          <h3 className="text-sm font-semibold tracking-tight text-zinc-950">
+                      <div className="space-y-4 rounded-xl border border-theme-border bg-theme-surface p-5 shadow-sm">
+                        <div className="border-b border-theme-border pb-2">
+                          <h3 className="text-sm font-semibold tracking-tight text-theme-fg">
                             Phone line routing
                           </h3>
-                          <p className="mt-0.5 text-xs text-zinc-500">
+                          <p className="mt-0.5 text-xs text-theme-label">
                             Attach a real phone line now or forward calls from your existing carrier.
                           </p>
                         </div>
@@ -717,8 +743,8 @@ export default function NewBusiness() {
                               key={mode}
                               className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3.5 text-xs font-medium transition-all ${
                                 phoneMode === mode
-                                  ? "border-emerald-700 bg-emerald-50/70 text-zinc-950"
-                                  : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
+                                  ? "border-theme-input-border-focus bg-theme-surface-muted text-theme-fg"
+                                  : "border-theme-border bg-theme-surface text-theme-label hover:bg-theme-surface-muted"
                               }`}
                             >
                               <input
@@ -737,16 +763,22 @@ export default function NewBusiness() {
                         {number ? (
                           <div
                             role="status"
-                            className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-950"
+                            className="rounded-xl border border-theme-border-muted bg-theme-surface-muted p-4 text-xs text-theme-fg"
                           >
                             <p className="font-semibold">Assigned receptionist line:</p>
                             <p className="mt-1 font-mono text-lg font-bold">{number}</p>
                           </div>
-                        ) : phoneMode === "new" ? (
-                          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
-                            <label className="label">Preferred US Area Code</label>
+                        ) : (
+                          <div className="rounded-xl border border-theme-border bg-theme-surface-muted p-4 space-y-3">
+                            {phoneMode === "forward" && (
+                              <p className="text-xs text-theme-label">
+                                First provision a destination line, then enable call forwarding with your existing carrier and place an inbound test call.
+                              </p>
+                            )}
+                            <label className="label" htmlFor="phone-area-code">Preferred US Area Code</label>
                             <div className="flex items-center gap-3">
                               <input
+                                id="phone-area-code"
                                 className="input max-w-28 font-mono text-center"
                                 inputMode="numeric"
                                 maxLength={3}
@@ -762,18 +794,15 @@ export default function NewBusiness() {
                                 {phoneBusy ? "Provisioning…" : "Provision number"}
                               </button>
                             </div>
-                            <p className="text-[11px] text-zinc-500">
-                              Requires telephony carrier credentials in deployment. You can connect anytime.
+                            <p className="text-[11px] text-theme-label">
+                              Requires telephony carrier credentials in deployment. Provisioning numbers and routing calls may incur carrier charges. You can connect later.
                             </p>
                           </div>
-                        ) : (
-                          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs leading-relaxed text-zinc-600 space-y-1">
-                            <ol className="list-decimal pl-4 space-y-1">
-                              <li>Obtain an assigned destination line on VoiceDesk.</li>
-                              <li>Enable call forwarding with your mobile or PBX carrier.</li>
-                              <li>Simulate an inbound call to confirm VoiceDesk picks up.</li>
-                            </ol>
-                          </div>
+                        )}
+                        {number && phoneMode === "forward" && (
+                          <p className="text-xs text-theme-label">
+                            Enable call forwarding to {number} with your existing carrier, then place an inbound test call to verify routing.
+                          </p>
                         )}
 
                         {phoneError && (
@@ -793,7 +822,7 @@ export default function NewBusiness() {
                 )}
 
                 {/* Footer Controls */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 pt-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-theme-border pt-4">
                   <button
                     type="button"
                     className="btn-secondary !text-xs !py-2"
@@ -827,9 +856,9 @@ export default function NewBusiness() {
               {/* Test chat active on final step */}
               {draft.step === 3 && (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-800">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-theme-fg">
                     <Sparkles size={14} />
-                    <span>Live Receptionist Test Call</span>
+                    <span>Receptionist chat test</span>
                   </div>
                   <TestChat businessId={businessId} />
                 </div>
@@ -837,86 +866,86 @@ export default function NewBusiness() {
             </div>
           )}
 
-          {/* Live Agent Preview Side Card */}
+          {/* Agent Preview Side Card */}
           <aside className="space-y-4 lg:sticky lg:top-20">
-            <div className="card space-y-4 shadow-sm border-zinc-200 bg-white">
-              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-                <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-900">
-                  <Bot size={15} className="text-emerald-800" />
-                  Live Agent Preview
+            <div className="card space-y-4 shadow-sm border-theme-border bg-theme-surface">
+              <div className="flex items-center justify-between border-b border-theme-border pb-3">
+                <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-theme-fg">
+                  <Bot size={15} className="text-theme-fg" />
+                  Agent Preview
                 </span>
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-900">
+                <span className="rounded-full bg-theme-surface-muted px-2 py-0.5 text-[10px] font-semibold text-theme-fg">
                   {draft.agent.agent_name || "Alex"}
                 </span>
               </div>
 
               {/* Greeting Bubble */}
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 space-y-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+              <div className="rounded-xl border border-theme-border bg-theme-surface-muted p-3.5 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-theme-fg">
                   Spoken Greeting
                 </span>
-                <p className="text-xs italic leading-relaxed text-zinc-700">
+                <p className="text-xs italic leading-relaxed text-theme-fg">
                   &ldquo;{draft.agent.greeting || "Thanks for calling! How can I help you today?"}&rdquo;
                 </p>
               </div>
 
               {/* Status & Heuristics List */}
-              <div className="space-y-2.5 text-xs text-zinc-600">
+              <div className="space-y-2.5 text-xs text-theme-label">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <Building2 size={13} className="text-zinc-400" />
+                    <Building2 size={13} className="text-theme-label" />
                     Business
                   </span>
-                  <strong className="text-zinc-900 truncate max-w-[140px]">
+                  <strong className="text-theme-fg truncate max-w-[140px]">
                     {draft.name || "Untitled"}
                   </strong>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <Clock size={13} className="text-zinc-400" />
+                    <Clock size={13} className="text-theme-label" />
                     Active days
                   </span>
-                  <span className="font-mono text-zinc-900 font-medium">
+                  <span className="font-mono text-theme-fg font-medium">
                     {openDaysCount} days / week
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <HelpCircle size={13} className="text-zinc-400" />
+                    <HelpCircle size={13} className="text-theme-label" />
                     FAQs loaded
                   </span>
-                  <span className="font-mono text-zinc-900 font-medium">
+                  <span className="font-mono text-theme-fg font-medium">
                     {draft.agent.faq.length} questions
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <Calendar size={13} className="text-zinc-400" />
+                    <Calendar size={13} className="text-theme-label" />
                     Services
                   </span>
-                  <span className="font-mono text-zinc-900 font-medium">
+                  <span className="font-mono text-theme-fg font-medium">
                     {servicesList.length} items
                   </span>
                 </div>
               </div>
 
-              <div className="border-t border-zinc-100 pt-3 text-[11px] text-zinc-500 leading-relaxed">
+              <div className="border-t border-theme-border pt-3 text-[11px] text-theme-label leading-relaxed">
                 Changes update in real-time. Full testing enabled in Step 4.
               </div>
             </div>
 
             {/* Persistence & Reset Box */}
-            <div className="rounded-xl border border-zinc-200 bg-white/70 p-4 text-xs leading-relaxed text-zinc-500 shadow-sm space-y-2">
+            <div className="rounded-xl border border-theme-border bg-theme-surface/70 p-4 text-xs leading-relaxed text-theme-label shadow-sm space-y-2">
               <p>
                 {createdBusinessId
                   ? "Workspace saved to API. Return anytime from your dashboard."
                   : draftSaved
                   ? "Draft state auto-saved on this browser."
                   : "Keep this tab open to retain active draft."}{" "}
-                Zero carrier charges occur during setup.
+                Editing setup does not provision a line. Provisioned numbers and calls may incur carrier charges.
               </p>
               {(draft.name || draft.businessId) && (
                 <button

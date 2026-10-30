@@ -13,11 +13,13 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Settings2,
   Sparkles,
   Users,
 } from "lucide-react";
 import { api, type Business, type Call, type Lead } from "@/lib/api";
 import { apiDate } from "./[id]/ui";
+import ThemeToggle from "./components/ThemeToggle";
 
 const DEMO_LEADS: Lead[] = [
   {
@@ -76,6 +78,7 @@ export default function Dashboard() {
   const [callError, setCallError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("recent");
   const [demoQuery, setDemoQuery] = useState("");
   const [leads, setLeads] = useState(DEMO_LEADS);
   const [demoNotice, setDemoNotice] = useState("");
@@ -103,7 +106,7 @@ export default function Dashboard() {
       });
 
     api.calls
-      .list()
+      .list(undefined, { limit: 50 })
       .then((data) => {
         if (!cancelled) setCalls(data);
       })
@@ -124,12 +127,24 @@ export default function Dashboard() {
 
   const filteredBusinesses = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return businesses.filter((business) =>
-      [business.name, business.vertical ?? "", business.phone_number ?? ""].some((value) =>
-        value.toLowerCase().includes(term)
+    return businesses
+      .filter((business) =>
+        [business.name, business.vertical ?? "", business.phone_number ?? ""].some((value) =>
+          value.toLowerCase().includes(term)
+        )
       )
-    );
-  }, [businesses, query]);
+      .sort((a, b) => {
+        if (sort === "phone") {
+          const phoneOrder = Number(Boolean(b.phone_number)) - Number(Boolean(a.phone_number));
+          if (phoneOrder) return phoneOrder;
+        }
+        if (sort === "recent") {
+          const recentOrder = (apiDate(b.created_at).getTime() || 0) - (apiDate(a.created_at).getTime() || 0);
+          if (recentOrder) return recentOrder;
+        }
+        return a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
+      });
+  }, [businesses, query, sort]);
 
   const filteredLeads = useMemo(() => {
     const term = demoQuery.trim().toLowerCase();
@@ -161,7 +176,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-20 border-b border-theme-border bg-theme-surface/95 backdrop-blur-md">
         <nav
           aria-label="Workspace navigation"
-          className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3.5 sm:px-8"
+          className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-3.5 sm:px-8"
         >
           <Link
             href="/"
@@ -175,8 +190,9 @@ export default function Dashboard() {
               / Workspaces
             </span>
           </Link>
-          <div className="flex items-center gap-3 text-xs text-theme-label">
-            <span className="rounded-md border border-theme-border bg-theme-surface-muted px-2 py-1 font-mono text-[11px]">
+          <div className="flex items-center gap-2 text-xs text-theme-label">
+            <ThemeToggle />
+            <span className="hidden rounded-md border border-theme-border bg-theme-surface-muted px-2 py-1 font-mono text-[11px] sm:inline-flex">
               Self-hosted
             </span>
             <Link
@@ -222,25 +238,25 @@ export default function Dashboard() {
         >
           {[
             {
-              label: "Businesses",
+              label: "Active workspaces",
               value: businesses.length,
               error: businessError,
               loading: businessLoading,
-              note: "Connected workspaces in DB",
+              note: "Active businesses returned by API",
             },
             {
-              label: "Active configurations",
-              value: businesses.filter((b) => b.active).length,
+              label: "Live receptionists",
+              value: businesses.filter((b) => b.has_config && b.phone_number).length,
               error: businessError,
               loading: businessLoading,
-              note: "Active AI receptionists",
+              note: "Configuration and phone number present",
             },
             {
-              label: "Total call logs",
+              label: "Call logs · latest 50",
               value: calls.length,
               error: callError,
               loading: callLoading,
-              note: "Latest API records",
+              note: "Up to 50 recent records, not lifetime total",
             },
           ].map((metric) => (
             <div key={metric.label} className="p-5 sm:p-6">
@@ -313,12 +329,29 @@ export default function Dashboard() {
                 />
                 <input
                   id="business-search"
+                  aria-label="Search business workspaces"
                   type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Filter by name, industry, or phone number…"
                   className="input !pl-9 !text-xs"
                 />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-theme-label">
+                <span>{filteredBusinesses.length} of {businesses.length} active</span>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="business-sort">Sort by</label>
+                  <select
+                    id="business-sort"
+                    value={sort}
+                    onChange={(event) => setSort(event.target.value)}
+                    className="rounded-md border border-theme-border bg-theme-surface px-2 py-1.5 text-xs text-theme-fg"
+                  >
+                    <option value="recent">Recently created</option>
+                    <option value="name">Name A–Z</option>
+                    <option value="phone">Has phone number</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -351,22 +384,26 @@ export default function Dashboard() {
             ) : (
               <div className="divide-y divide-theme-border">
                 {filteredBusinesses.map((b) => (
-                  <Link
+                  <div
                     key={b.id}
-                    href={`/dashboard/${b.id}`}
-                    className="group flex items-center justify-between gap-4 p-4 transition-colors hover:bg-theme-surface-muted/40"
+                    className="group relative flex items-center justify-between gap-4 p-4 transition-colors hover:bg-theme-surface-muted/40"
                   >
-                    <div className="min-w-0">
+                    <Link
+                      href={`/dashboard/${b.id}`}
+                      className="absolute inset-0 z-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-700"
+                    >
+                      <span className="sr-only">Open {b.name} workspace</span>
+                    </Link>
+                    <div className="pointer-events-none relative z-10 min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="truncate text-sm font-semibold text-theme-fg group-hover:text-emerald-800 dark:group-hover:text-emerald-400">
                           {b.name}
                         </h3>
-                        <span
-                          className={`h-2 w-2 rounded-full ${
-                            b.active !== false ? "bg-emerald-500" : "bg-amber-400"
-                          }`}
-                          title={b.active !== false ? "Active" : "Paused"}
-                        />
+                        {b.has_config && b.phone_number && (
+                          <span className="shrink-0 rounded-full border border-theme-border bg-theme-surface-muted px-2 py-0.5 text-[10px] font-medium text-theme-fg">
+                            Configured
+                          </span>
+                        )}
                       </div>
                       <p className="mt-0.5 text-xs text-theme-label capitalize">
                         {b.vertical?.replaceAll("_", " ") ?? "General"} ·{" "}
@@ -376,12 +413,37 @@ export default function Dashboard() {
                           <span className="italic">No phone line</span>
                         )}
                       </p>
+                      {(!b.phone_number || !b.has_config) && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {!b.phone_number && (
+                            <span className="rounded-full border border-theme-border bg-theme-surface-muted px-2 py-0.5 text-[10px] font-medium text-theme-label">
+                              Number missing
+                            </span>
+                          )}
+                          {!b.has_config && (
+                            <span className="rounded-full border border-theme-border bg-theme-surface-muted px-2 py-0.5 text-[10px] font-medium text-theme-label">
+                              {b.has_config === false ? "Config incomplete" : "Config status unknown"}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <ArrowUpRight
-                      size={16}
-                      className="shrink-0 text-theme-label group-hover:text-emerald-800 dark:group-hover:text-emerald-400 transition-colors"
-                    />
-                  </Link>
+                    <div className="relative z-10 flex shrink-0 items-center gap-3">
+                      <Link
+                        href={`/dashboard/${b.id}/agent`}
+                        aria-label={`Settings for ${b.name}`}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-theme-border px-2.5 py-1.5 text-xs font-medium text-theme-fg transition-colors hover:bg-theme-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                      >
+                        <Settings2 size={14} aria-hidden="true" />
+                        <span>Settings</span>
+                      </Link>
+                      <ArrowUpRight
+                        size={16}
+                        aria-hidden="true"
+                        className="text-theme-label transition-colors group-hover:text-emerald-800 dark:group-hover:text-emerald-400"
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -418,6 +480,16 @@ export default function Dashboard() {
               <ul className="divide-y divide-theme-border">
                 {recentCalls.map((call) => (
                   <li key={call.id} className="p-4 space-y-1">
+                    <Link
+                      href={`/dashboard/${call.business_id}/calls`}
+                      className="inline-flex max-w-full items-center gap-1 text-xs font-medium text-theme-fg underline underline-offset-2 hover:text-theme-label"
+                    >
+                      <span className="truncate">
+                        {businesses.find((business) => business.id === call.business_id)?.name ?? "Business unavailable"}
+                      </span>
+                      <span className="shrink-0">· View calls</span>
+                      <ArrowUpRight size={12} aria-hidden="true" className="shrink-0" />
+                    </Link>
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono text-xs font-semibold text-theme-fg">
                         {call.caller_name || call.caller_number || "Unknown caller"}
@@ -463,6 +535,7 @@ export default function Dashboard() {
             <div className="w-full sm:w-64">
               <input
                 id="demo-search"
+                aria-label="Search demo leads"
                 type="search"
                 value={demoQuery}
                 onChange={(event) => setDemoQuery(event.target.value)}

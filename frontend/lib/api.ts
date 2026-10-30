@@ -24,6 +24,7 @@ export interface Business {
   timezone: string;
   plan: string;
   active: boolean;
+  has_config?: boolean;
   created_at: string;
 }
 
