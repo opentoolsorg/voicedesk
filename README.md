@@ -1,4 +1,4 @@
-# VoiceDesk ☎ — Open-Source AI Voice Agent Platform
+# VoiceDesk ☎ — Open-Source AI Receptionist Platform
 
 [![Site](https://img.shields.io/badge/Site-voicedesk.princepal.dev-0B9F95?style=flat-square&logo=cloudflare&logoColor=white)](https://voicedesk.princepal.dev)
 [![API Docs](https://img.shields.io/badge/API_Docs-localhost%3A8000%2Fdocs-teal?style=flat-square)](http://localhost:8000/docs)
@@ -10,7 +10,7 @@
 [![Awesome Solo Founder OSS](https://img.shields.io/badge/Awesome%20Solo%20Founder%20OSS-Curated%20OSS%20stack%20for%20solo%20founders-teal?style=flat-square)](https://github.com/princepal9120/awesome-solo-founder-oss)
 [![Shiba](https://img.shields.io/badge/Shiba-AI%20Coworker%20on%20Cloudflare-0B9F95?style=flat-square&logo=cloudflare&logoColor=white)](https://github.com/opentoolsorg/shiba)
 
-VoiceDesk is an open-source, white-label AI voice-agent platform: configure niche phone agents (restaurant, dental, real estate, support), design conversational call flows, provision telephony numbers, and review call recordings and transcripts. Run locally in one command with zero keys, or deploy the API and dashboard serverlessly to Cloudflare Python Workers backed by Cloudflare D1.
+VoiceDesk is an open-source, white-label AI receptionist platform: automate front-desk telephone handling 24/7, book patient and customer appointments, capture inbound leads and messages, and route callers through customizable conversational flows. Run locally in one command with zero keys, or deploy the API and dashboard serverlessly to Cloudflare Python Workers backed by Cloudflare D1.
 
 **Live Deployment:** [https://voicedesk.princepal.dev](https://voicedesk.princepal.dev)
 

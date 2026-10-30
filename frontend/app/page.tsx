@@ -208,16 +208,16 @@ export default function Home() {
           <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-3.5 py-1 text-xs font-semibold text-emerald-900 shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-700 animate-pulse" aria-hidden="true" />
-              <span>100% Open Source · Self-Hosted AI Voice Infrastructure</span>
+              <span>100% Open Source · Self-Hosted AI Receptionist Platform</span>
             </div>
 
             <h1 id="hero-title" className="mt-7 text-5xl font-semibold leading-[1.08] tracking-[-0.055em] text-zinc-950 sm:text-6xl lg:text-[4.5rem]">
-              Autonomous phone agents.<br />
+              Open-Source AI Receptionist.<br />
               <span className="text-emerald-800">Deployed on your terms.</span>
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-600 sm:text-xl">
-              VoiceDesk is the white-label AI voice platform you can inspect, customize, and self-host. Pick a template, design conversational flows, and connect real telephony—with zero vendor lock-in.
+              VoiceDesk is the open-source, white-label AI receptionist platform you can inspect, customize, and self-host. Answer inbound phone calls 24/7, book appointments on calendar, take messages, and route callers—with zero vendor lock-in.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
@@ -606,7 +606,7 @@ export default function Home() {
         <section className="border-t border-zinc-200/80 bg-zinc-950 py-16 text-white sm:py-24">
           <div className="mx-auto max-w-5xl px-5 text-center sm:px-8">
             <h2 className="text-3xl font-semibold tracking-[-0.04em] sm:text-5xl text-white">
-              Ready to own your voice agent stack?
+              Ready to deploy your open-source AI receptionist?
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-base text-zinc-400">
               Download the repository, customize your system prompts, and deploy on your server or Cloudflare in minutes.
@@ -637,7 +637,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <span className="font-semibold text-white">VoiceDesk</span>
             <span>/</span>
-            <span>Open-source AI Voice Infrastructure</span>
+            <span>Open-Source AI Receptionist Platform</span>
           </div>
           <nav aria-label="Footer links" className="flex flex-wrap items-center gap-6">
             <a href={repository} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">GitHub</a>
