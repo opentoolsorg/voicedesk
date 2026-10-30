@@ -48,7 +48,7 @@ const scenarios: DemoScenario[] = [
   {
     id: "clinic",
     name: "Dental Appointment & Triage",
-    vertical: "Healthcare · Aria Clinic",
+    vertical: "Healthcare · Northline Dental",
     caller: "Maya Chen",
     callerNumber: "+1 (415) 555-0184",
     outcome: "Booked Appointment",
@@ -172,6 +172,12 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 ${focus}`}
+            >
+              Dashboard
+            </Link>
             <a
               href={repository}
               target="_blank"
@@ -312,26 +318,35 @@ export default function Home() {
               </div>
 
               {/* Subnav Tabs */}
-              <div className="flex border-b border-zinc-200 bg-zinc-50/60 px-5 text-xs font-medium text-zinc-600">
+              <div role="tablist" aria-label="Simulator panels" className="flex border-b border-zinc-200 bg-zinc-50/60 px-5 text-xs font-medium text-zinc-600">
                 <button
+                  role="tab"
+                  aria-selected={activeTab === "transcript"}
+                  aria-pressed={activeTab === "transcript"}
                   onClick={() => setActiveTab("transcript")}
-                  className={`border-b-2 px-4 py-3 transition-colors ${
+                  className={`border-b-2 px-4 py-3 transition-colors ${focus} ${
                     activeTab === "transcript" ? "border-emerald-800 font-semibold text-emerald-900 bg-white" : "border-transparent hover:text-zinc-950"
                   }`}
                 >
                   Conversation Transcript
                 </button>
                 <button
+                  role="tab"
+                  aria-selected={activeTab === "tools"}
+                  aria-pressed={activeTab === "tools"}
                   onClick={() => setActiveTab("tools")}
-                  className={`border-b-2 px-4 py-3 transition-colors ${
+                  className={`border-b-2 px-4 py-3 transition-colors ${focus} ${
                     activeTab === "tools" ? "border-emerald-800 font-semibold text-emerald-900 bg-white" : "border-transparent hover:text-zinc-950"
                   }`}
                 >
                   Executed Tool Calls ({scenario.toolsUsed.length})
                 </button>
                 <button
+                  role="tab"
+                  aria-selected={activeTab === "telephony"}
+                  aria-pressed={activeTab === "telephony"}
                   onClick={() => setActiveTab("telephony")}
-                  className={`border-b-2 px-4 py-3 transition-colors ${
+                  className={`border-b-2 px-4 py-3 transition-colors ${focus} ${
                     activeTab === "telephony" ? "border-emerald-800 font-semibold text-emerald-900 bg-white" : "border-transparent hover:text-zinc-950"
                   }`}
                 >

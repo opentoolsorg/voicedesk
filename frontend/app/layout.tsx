@@ -6,6 +6,12 @@ export const metadata: Metadata = {
   title: "VoiceDesk | Open-source AI voice agent platform",
   description:
     "VoiceDesk is an open-source white-label AI voice agent platform with an OpenAI-first demo path and a production voice stack for live deployments.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

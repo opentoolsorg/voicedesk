@@ -78,11 +78,17 @@ async def get_analytics(
     today = datetime.utcnow().date()
     first = today - timedelta(days=days - 1)
     calls = db.execute(
-        select(Call).where(
+        select(
+            Call.id,
+            Call.started_at,
+            Call.duration_sec,
+            Call.outcome,
+            Call.status
+        ).where(
             Call.business_id == business.id,
             Call.started_at >= datetime.combine(first, datetime.min.time()),
         )
-    ).scalars().all()
+    ).all()
 
     try:
         tz = ZoneInfo(business.timezone)
@@ -298,7 +304,8 @@ async def load_demo_data(
     rng.shuffle(outcomes)
     for i, outcome in enumerate(outcomes):
         name = f"{rng.choice(FIRST)} {rng.choice(LAST)}"
-        started = now - timedelta(days=rng.randint(0, 29), hours=rng.randint(0, 10), minutes=rng.randint(0, 59))
+        window_start = (now - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
+        started = max(window_start, now - timedelta(days=rng.randint(0, 29), hours=rng.randint(0, 10), minutes=rng.randint(0, 59)))
         service = rng.choice(services)
         qa = rng.choice(faq) if faq else {"question": topical_q, "answer": "Let me check, one moment. Our team will confirm the details."}
         turns, summary = _script(outcome, name, service, qa["question"], qa["answer"], topic, config.agent_name, business.name, rng)

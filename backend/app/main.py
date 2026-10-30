@@ -45,6 +45,11 @@ def add_missing_columns(db_engine) -> None:
                     if col.server_default is not None:
                         ddl += f" DEFAULT {col.server_default.arg.text}"
                     conn.execute(text(ddl))
+                    if table.name == "businesses" and col.name == "telephony_provider":
+                        conn.execute(
+                            text('UPDATE "businesses" SET "telephony_provider" = :provider WHERE "telephony_provider" IS NULL'),
+                            {"provider": "twilio"}
+                        )
 
 
 @asynccontextmanager

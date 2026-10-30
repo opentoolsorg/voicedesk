@@ -7,9 +7,10 @@ def normalize_faq(items) -> list[dict]:
     for f in items or []:
         if not isinstance(f, dict):
             continue
-        q, a = f.get("question") or f.get("q"), f.get("answer") or f.get("a")
-        if q and a:
-            out.append({"question": q, "answer": a})
+        q = f.get("question") if f.get("question") is not None else f.get("q")
+        a = f.get("answer") if f.get("answer") is not None else f.get("a")
+        if isinstance(q, str) and isinstance(a, str) and q.strip() and a.strip():
+            out.append({"question": q.strip(), "answer": a.strip()})
     return out
 
 
@@ -19,7 +20,11 @@ def normalize_services(items) -> list[dict]:
     for s in items or []:
         if isinstance(s, str):
             s = {"name": s}
-        if isinstance(s, dict) and s.get("name") and s["name"] not in seen:
-            seen.add(s["name"])
-            out.append(s)
+        if isinstance(s, dict):
+            name = s.get("name")
+            if isinstance(name, str) and name.strip() and name.strip() not in seen:
+                clean_name = name.strip()
+                seen.add(clean_name)
+                out.append({**s, "name": clean_name})
     return out
+

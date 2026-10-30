@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, JSON, ForeignKey, Text, text
+from sqlalchemy import String, Boolean, DateTime, JSON, ForeignKey, Text, text, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
@@ -60,8 +60,8 @@ class AgentConfig(Base):
     transfer_number: Mapped[str | None] = mapped_column(String(20))
     website_url: Mapped[str | None] = mapped_column(String(500))
     knowledge_text: Mapped[str | None] = mapped_column(Text)
-    take_messages: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("1"))
-    booking_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("1"))
+    take_messages: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    booking_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     notify_email: Mapped[str | None] = mapped_column(String(255))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow

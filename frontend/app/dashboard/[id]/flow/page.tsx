@@ -2,31 +2,54 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { ArrowRight, FloppyDisk, PhoneCall, Plus, Users } from "@phosphor-icons/react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  GitBranch,
+  HelpCircle,
+  MessageSquare,
+  Phone,
+  PhoneCall,
+  PhoneOff,
+  Plus,
+  Save,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { api, type Contact, type FlowVersion } from "@/lib/api";
 
 type DraftNode = { type: "message" | "question" | "end"; text: string };
 type Notice = { kind: "success" | "error"; text: string } | null;
 type Action = "save" | "contact" | "call" | null;
+
 const starterNodes: DraftNode[] = [
-  { type: "message", text: "Hello, this is calling from our team." },
-  { type: "question", text: "Are you available to speak with us today?" },
-  { type: "end", text: "Thank you. Have a great day." },
+  { type: "message", text: "Hello! Thanks for calling. How can I help you today?" },
+  { type: "question", text: "Are you calling to schedule an appointment or ask a question?" },
+  { type: "end", text: "Thank you for reaching out. Have a wonderful day!" },
 ];
-const button = "btn-secondary gap-2 disabled:cursor-not-allowed disabled:opacity-50";
-const input = "input disabled:bg-theme-bg disabled:text-theme-label";
 
 function Feedback({ notice }: { notice: Notice }) {
   if (!notice) return null;
-  return <p role={notice.kind === "error" ? "alert" : "status"} className={`mt-4 break-words rounded-lg border px-4 py-3 text-sm leading-6 ${notice.kind === "error" ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>{notice.text}</p>;
+  const isError = notice.kind === "error";
+  return (
+    <div
+      role={isError ? "alert" : "status"}
+      className={`mt-4 rounded-lg border p-3 text-xs leading-relaxed ${
+        isError
+          ? "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300"
+          : "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+      }`}
+    >
+      {notice.text}
+    </div>
+  );
 }
 
 export default function FlowPage() {
-  // Static export ships one "_" shell for every id, so read the real id from the URL.
   const id = usePathname().split("/")[2];
   const [flows, setFlows] = useState<FlowVersion[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [name, setName] = useState("Customer call flow");
+  const [name, setName] = useState("Standard Inbound Flow");
   const [nodes, setNodes] = useState<DraftNode[]>(starterNodes);
   const [contactName, setContactName] = useState("");
   const [phone, setPhone] = useState("");
@@ -51,11 +74,15 @@ export default function FlowPage() {
     setFlowError("");
     setContactError("");
     setCallTarget(null);
-    api.flows.list(id)
+
+    api.flows
+      .list(id)
       .then((data) => {
         if (cancelled) return;
         setFlows(data);
-        setSelectedFlow((current) => data.some((flow) => flow.id === current) ? current : data[0]?.id ?? "");
+        setSelectedFlow((current) =>
+          data.some((flow) => flow.id === current) ? current : data[0]?.id ?? ""
+        );
       })
       .catch(() => {
         if (cancelled) return;
@@ -63,20 +90,39 @@ export default function FlowPage() {
         setSelectedFlow("");
         setFlowError("Could not load saved flows. Check the API connection and retry.");
       })
-      .finally(() => { if (!cancelled) setFlowsLoading(false); });
-    api.contacts.list(id)
-      .then((data) => { if (!cancelled) setContacts(data); })
+      .finally(() => {
+        if (!cancelled) setFlowsLoading(false);
+      });
+
+    api.contacts
+      .list(id)
+      .then((data) => {
+        if (cancelled) return;
+        setContacts(data);
+      })
       .catch(() => {
         if (cancelled) return;
         setContacts([]);
         setContactError("Could not load customers. Check the API connection and retry.");
       })
-      .finally(() => { if (!cancelled) setContactsLoading(false); });
-    return () => { cancelled = true; };
+      .finally(() => {
+        if (!cancelled) setContactsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [id, refresh]);
 
   function updateNode(index: number, patch: Partial<DraftNode>) {
-    setNodes((current) => current.map((node, i) => (i === index ? { ...node, ...patch } : node)));
+    setNodes((current) =>
+      current.map((node, i) => (i === index ? { ...node, ...patch } : node))
+    );
+  }
+
+  function removeNode(index: number) {
+    if (nodes.length <= 1) return;
+    setNodes((current) => current.filter((_, i) => i !== index));
   }
 
   async function saveFlow(event: React.FormEvent) {
@@ -91,7 +137,7 @@ export default function FlowPage() {
     setSaveNotice(null);
     try {
       const saved = await api.flows.create(id, {
-        name,
+        name: name.trim(),
         nodes: nodes.map((node, index) => ({
           id: `node-${index + 1}`,
           type: node.type,
@@ -102,9 +148,15 @@ export default function FlowPage() {
       });
       setFlows((current) => [saved, ...current]);
       setSelectedFlow(saved.id);
-      setSaveNotice({ kind: "success", text: "Flow saved and activated. It is now selected for calls." });
+      setSaveNotice({
+        kind: "success",
+        text: "Flow saved and activated. Selected for subsequent calls.",
+      });
     } catch (error) {
-      setSaveNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not save the flow. Your draft is still here." });
+      setSaveNotice({
+        kind: "error",
+        text: error instanceof Error ? error.message : "Could not save the flow. Your draft is still here.",
+      });
     } finally {
       actionLock.current = false;
       setAction(null);
@@ -122,13 +174,19 @@ export default function FlowPage() {
     setAction("contact");
     setContactNotice(null);
     try {
-      const contact = await api.contacts.create(id, { name: contactName || undefined, phone_number: phone });
+      const contact = await api.contacts.create(id, {
+        name: contactName.trim() || undefined,
+        phone_number: phone.trim(),
+      });
       setContacts((current) => [contact, ...current]);
       setContactName("");
       setPhone("");
-      setContactNotice({ kind: "success", text: "Customer added. No call has been placed." });
+      setContactNotice({ kind: "success", text: "Customer added to directory. Ready for calls." });
     } catch (error) {
-      setContactNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not add the customer. Your details are still here." });
+      setContactNotice({
+        kind: "error",
+        text: error instanceof Error ? error.message : "Could not add customer. Details are still here.",
+      });
     } finally {
       actionLock.current = false;
       setAction(null);
@@ -145,12 +203,22 @@ export default function FlowPage() {
     setAction("call");
     setCallNotice(null);
     try {
-      const result = await api.calls.outbound({ business_id: id, phone_number: contact.phone_number, flow_version_id: selectedFlow });
+      const result = await api.calls.outbound({
+        business_id: id,
+        phone_number: contact.phone_number,
+        flow_version_id: selectedFlow,
+      });
       setCallTarget(null);
-      setCallNotice({ kind: "success", text: `Call request accepted for ${contact.phone_number}. Room: ${result.room_name}. This does not confirm the customer answered.` });
+      setCallNotice({
+        kind: "success",
+        text: `Outbound call requested for ${contact.phone_number}. Room: ${result.room_name}.`,
+      });
     } catch (error) {
       setCallTarget(null);
-      setCallNotice({ kind: "error", text: `${error instanceof Error ? error.message : "Could not confirm the call request."} Check call activity before retrying; the request may have reached your provider.` });
+      setCallNotice({
+        kind: "error",
+        text: `${error instanceof Error ? error.message : "Could not dispatch call request."} Check provider credentials.`,
+      });
     } finally {
       actionLock.current = false;
       setAction(null);
@@ -158,42 +226,366 @@ export default function FlowPage() {
   }
 
   return (
-    <div className="text-theme-fg">
+    <div className="space-y-6">
+      {/* Header */}
       <div>
-        <p className="text-xs font-medium text-theme-fg">Configure → save → call</p>
-        <h1 className="mt-3 text-3xl font-medium tracking-[-0.045em] sm:text-4xl">Shape the conversation.</h1>
-        <p className="mt-4 max-w-2xl text-sm leading-7 text-theme-label">Write the agent’s steps, save a flow, and choose a customer to call. Draft changes are not used in calls until you save them.</p>
-        {(flowError || contactError) && <div role="alert" className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3"><div className="text-sm leading-6 text-amber-900">{flowError && <p>{flowError}</p>}{contactError && <p>{contactError}</p>}</div><button type="button" disabled={(flowsLoading && contactsLoading) || busy} onClick={() => setRefresh((current) => current + 1)} className={`${button} border border-amber-300 bg-theme-surface text-amber-950 hover:bg-amber-100`}>Retry loading</button></div>}
-        <div className="mt-8 grid items-start gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <section aria-labelledby="flow-title" className="min-w-0 rounded-xl border border-theme-border bg-theme-surface">
-            <div className="border-b border-theme-border px-5 py-5 sm:px-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 id="flow-title" className="text-lg font-medium tracking-tight">1. Build your flow</h2><span className="text-xs tabular-nums text-theme-label">{nodes.length} steps · draft</span></div><p className="mt-2 text-xs leading-6 text-theme-label">Steps run in order. An end-call step finishes the conversation.</p></div>
-            <form onSubmit={saveFlow} aria-busy={action === "save"} className="p-5 sm:p-6">
-              <label htmlFor="flow-name" className="mb-2 block text-sm font-medium">Flow name</label>
-              <input id="flow-name" className={input} value={name} onChange={(event) => setName(event.target.value)} disabled={busy || flowsLoading} required />
-              <ol className="mt-6 space-y-4">
-                {nodes.map((node, index) => <li key={index} className="rounded-lg border border-theme-border bg-theme-bg p-4"><div className="mb-3 flex items-center gap-2 text-xs font-medium text-theme-label"><span className="flex h-6 w-6 items-center justify-center rounded-md border border-theme-border bg-theme-surface tabular-nums">{index + 1}</span>Conversation step</div><div className="grid gap-3 sm:grid-cols-[9rem_1fr]"><div><label htmlFor={`step-type-${index}`} className="mb-1.5 block text-xs text-theme-label">Step {index + 1} type</label><select id={`step-type-${index}`} className={input} value={node.type} disabled={busy || flowsLoading} onChange={(event) => updateNode(index, { type: event.target.value as DraftNode["type"] })}><option value="message">Say something</option><option value="question">Ask a question</option><option value="end">End call</option></select></div><div><label htmlFor={`step-text-${index}`} className="mb-1.5 block text-xs text-theme-label">Step {index + 1} text</label><textarea id={`step-text-${index}`} rows={3} className={`${input} resize-y`} value={node.text} disabled={busy || flowsLoading} onChange={(event) => updateNode(index, { text: event.target.value })} placeholder="What should the agent say?" /></div></div></li>)}
-              </ol>
-              <button type="button" disabled={busy || flowsLoading} onClick={() => setNodes((current) => [...current, { type: "message", text: "" }])} className={`${button} mt-4 border border-dashed border-theme-border text-theme-label hover:bg-theme-bg`}><Plus aria-hidden="true" size={16} />Add step</button>
-              <div className="mt-6 border-t border-theme-border pt-5"><button type="submit" disabled={busy || flowsLoading} className={`${button} w-full !border-theme-btn-primary !bg-theme-btn-primary !text-theme-btn-primary-fg hover:!bg-theme-btn-primary-hover sm:w-auto`}><FloppyDisk aria-hidden="true" size={17} />{action === "save" ? "Saving flow…" : "Save and activate flow"}</button><p role="status" className="mt-3 text-xs leading-6 text-theme-label">{action === "save" ? "Saving these steps to your API…" : "Saving creates a new flow version. It does not place a call."}</p></div>
-              <Feedback notice={saveNotice} />
-            </form>
-          </section>
-          <div className="min-w-0 space-y-6">
-            <section aria-labelledby="contact-title" className="rounded-xl border border-theme-border bg-theme-surface p-5 sm:p-6">
-              <h2 id="contact-title" className="text-lg font-medium tracking-tight">2. Add a customer</h2><p className="mt-2 text-xs leading-6 text-theme-label">Use a number you have permission to call. Adding a customer does not contact them.</p>
-              <form onSubmit={addContact} aria-busy={action === "contact"} className="mt-5 space-y-4"><div><label htmlFor="customer-name" className="mb-2 block text-sm font-medium">Customer name <span className="font-normal text-theme-label">(optional)</span></label><input id="customer-name" autoComplete="name" className={input} value={contactName} disabled={busy || contactsLoading} onChange={(event) => setContactName(event.target.value)} /></div><div><label htmlFor="customer-phone" className="mb-2 block text-sm font-medium">Phone number</label><input id="customer-phone" type="tel" autoComplete="tel" aria-describedby="phone-hint" className={input} value={phone} disabled={busy || contactsLoading} onChange={(event) => setPhone(event.target.value)} placeholder="+919876543210" required /><p id="phone-hint" className="mt-2 text-xs text-theme-label">Include the country code, for example +91.</p></div><button type="submit" disabled={busy || contactsLoading} className={`${button} border border-theme-border text-theme-fg hover:bg-theme-bg`}><Plus aria-hidden="true" size={16} />{action === "contact" ? "Adding customer…" : "Add customer"}</button><p role="status" className="text-xs text-theme-label">{action === "contact" ? "Saving the customer to your API…" : ""}</p></form>
-              <Feedback notice={contactNotice} />
-            </section>
-            <section aria-labelledby="call-title" className="min-w-0 rounded-xl border border-theme-border bg-theme-surface p-5 sm:p-6">
-              <div className="flex items-center justify-between gap-3"><h2 id="call-title" className="text-lg font-medium tracking-tight">3. Place a call</h2><Users aria-hidden="true" size={20} className="text-theme-label" /></div><p className="mt-2 text-xs leading-6 text-theme-label">This sends a real outbound request through your configured voice and telephony providers. Provider charges may apply.</p>
-              {flowsLoading ? <div role="status" className="mt-5 space-y-3"><span className="sr-only">Loading saved flows…</span><div className="h-11 rounded-lg bg-theme-bg motion-safe:animate-pulse" /><div className="h-20 rounded-lg bg-theme-bg motion-safe:animate-pulse" /></div> : <><label htmlFor="call-flow" className="mb-2 mt-5 block text-sm font-medium">Saved flow for calls</label><select id="call-flow" className={input} value={selectedFlow} disabled={busy || flows.length === 0} onChange={(event) => { setSelectedFlow(event.target.value); setCallTarget(null); }}><option value="">Choose a saved flow</option>{flows.map((flow) => <option key={flow.id} value={flow.id}>{flow.name} v{flow.version}</option>)}</select>{!flows.length && !flowError && <p className="mt-2 text-xs leading-6 text-theme-label">No saved flows yet. Save your draft to enable calling.</p>}</>}
-              {contactsLoading ? <div role="status" className="mt-5 h-20 rounded-lg bg-theme-bg motion-safe:animate-pulse"><span className="sr-only">Loading customers…</span></div> : <>{contactError && <p className="mt-5 text-sm text-theme-label">The full customer list is unavailable. Retry loading above.</p>}{!contacts.length && !contactError ? <div className="mt-5 rounded-lg border border-dashed border-theme-border px-4 py-7"><p className="text-sm font-medium">No customers yet.</p><p className="mt-2 text-xs leading-6 text-theme-label">Add a customer’s phone number above, then review the saved flow before calling.</p></div> : <ul className="mt-5 divide-y divide-theme-border">{contacts.map((contact) => <li key={contact.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><p className="break-words text-sm font-medium">{contact.name || "Unnamed customer"}</p><p className="mt-1 break-all font-mono text-xs text-theme-label">{contact.phone_number}</p></div><button type="button" disabled={busy || flowsLoading || !selectedFlow} aria-label={`Prepare call to ${contact.name || contact.phone_number}`} onClick={() => { setCallTarget(contact); setCallNotice(null); }} className={`${button} border border-theme-border text-theme-fg hover:bg-theme-surface-muted`}><PhoneCall aria-hidden="true" size={16} />Prepare call</button></li>)}</ul>}</>}
-              {callTarget && <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-medium text-amber-950">Confirm this real call</p><p className="mt-2 break-words text-xs leading-6 text-amber-900">Call {callTarget.name || "this customer"} at <span className="break-all font-mono">{callTarget.phone_number}</span> using {flows.find((flow) => flow.id === selectedFlow)?.name}?</p><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => startCall(callTarget)} className={`${button} !border-theme-btn-primary !bg-theme-btn-primary !text-theme-btn-primary-fg hover:!bg-theme-btn-primary-hover`}><ArrowRight aria-hidden="true" size={16} />{action === "call" ? "Requesting call…" : "Place real call"}</button><button type="button" disabled={busy} onClick={() => setCallTarget(null)} className={`${button} text-theme-label hover:bg-theme-surface`}>Cancel</button></div><p role="status" className="mt-2 text-xs text-amber-900">{action === "call" ? "Sending the outbound request. Do not submit it again." : "No call has been placed yet."}</p></div>}
-              <Feedback notice={callNotice} />
-            </section>
+        <h1 className="text-2xl font-bold tracking-tight text-theme-fg sm:text-3xl">
+          Call-flow builder
+        </h1>
+        <p className="mt-1 text-sm text-theme-label">
+          Design step-by-step receptionist dialogue sequences and test outbound flows.
+        </p>
+      </div>
+
+      {(flowError || contactError) && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"
+        >
+          <div>
+            {flowError && <p>{flowError}</p>}
+            {contactError && <p>{contactError}</p>}
           </div>
+          <button
+            type="button"
+            disabled={(flowsLoading && contactsLoading) || busy}
+            onClick={() => setRefresh((current) => current + 1)}
+            className="btn-secondary !text-xs !py-1"
+          >
+            Retry loading
+          </button>
         </div>
-        <footer className="mt-10 border-t border-theme-border pt-5 text-xs text-theme-label">VoiceDesk · Open-source, self-hosted voice operations.</footer>
+      )}
+
+      <div className="grid items-start gap-6 xl:grid-cols-[1.3fr_0.9fr]">
+        {/* Step Flow Editor */}
+        <section
+          aria-labelledby="flow-title"
+          className="card space-y-6 shadow-sm"
+        >
+          <div className="flex items-center justify-between border-b border-theme-border/60 pb-4">
+            <div>
+              <h2 id="flow-title" className="text-base font-semibold tracking-tight text-theme-fg flex items-center gap-2">
+                <GitBranch size={16} className="text-indigo-600 dark:text-indigo-400" />
+                1. Conversation script & steps
+              </h2>
+              <p className="mt-0.5 text-xs text-theme-label">
+                Dialogue executed in linear order during calls.
+              </p>
+            </div>
+            <span className="rounded border border-theme-border bg-theme-surface-muted px-2 py-0.5 font-mono text-xs text-theme-label">
+              {nodes.length} steps
+            </span>
+          </div>
+
+          <form onSubmit={saveFlow} aria-busy={action === "save"} className="space-y-5">
+            <div>
+              <label htmlFor="flow-name" className="label">
+                Flow template name
+              </label>
+              <input
+                id="flow-name"
+                className="input"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                disabled={busy || flowsLoading}
+                required
+              />
+            </div>
+
+            <ol className="space-y-3.5">
+              {nodes.map((node, index) => (
+                <li
+                  key={index}
+                  className="rounded-xl border border-theme-border bg-theme-surface-muted/20 p-4 transition-colors focus-within:border-theme-border-muted"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-theme-fg">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-indigo-600 text-[10px] font-bold text-white">
+                        {index + 1}
+                      </span>
+                      <span>Step {index + 1}</span>
+                    </div>
+
+                    {nodes.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeNode(index)}
+                        disabled={busy || flowsLoading}
+                        className="text-xs text-rose-600 hover:text-rose-700 dark:text-rose-400 inline-flex items-center gap-1"
+                        aria-label={`Remove step ${index + 1}`}
+                      >
+                        <Trash2 size={12} />
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
+                    <div>
+                      <label htmlFor={`step-type-${index}`} className="label !text-[11px]">
+                        Step type
+                      </label>
+                      <select
+                        id={`step-type-${index}`}
+                        className="input !text-xs"
+                        value={node.type}
+                        disabled={busy || flowsLoading}
+                        onChange={(event) =>
+                          updateNode(index, { type: event.target.value as DraftNode["type"] })
+                        }
+                      >
+                        <option value="message">Speak message</option>
+                        <option value="question">Ask question</option>
+                        <option value="end">End call</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label htmlFor={`step-text-${index}`} className="label !text-[11px]">
+                        Spoken script
+                      </label>
+                      <textarea
+                        id={`step-text-${index}`}
+                        rows={2}
+                        className="input !text-xs resize-y"
+                        value={node.text}
+                        disabled={busy || flowsLoading}
+                        onChange={(event) => updateNode(index, { text: event.target.value })}
+                        placeholder="What should the receptionist say?"
+                        required
+                      />
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            <button
+              type="button"
+              disabled={busy || flowsLoading}
+              onClick={() => setNodes((current) => [...current, { type: "message", text: "" }])}
+              className="btn-secondary w-full border-dashed !py-2 !text-xs gap-1.5"
+            >
+              <Plus size={14} aria-hidden="true" />
+              Add dialogue step
+            </button>
+
+            <div className="border-t border-theme-border/60 pt-4 flex flex-wrap items-center justify-between gap-3">
+              <p role="status" className="text-xs text-theme-label">
+                {action === "save"
+                  ? "Saving steps to your API…"
+                  : "Saving commits a new version to use for calls."}
+              </p>
+
+              <button
+                type="submit"
+                disabled={busy || flowsLoading}
+                className="btn-primary gap-1.5 disabled:opacity-50"
+              >
+                <Save size={14} aria-hidden="true" />
+                {action === "save" ? "Saving flow…" : "Save & activate flow"}
+              </button>
+            </div>
+
+            <Feedback notice={saveNotice} />
+          </form>
+        </section>
+
+        {/* Right Column: Add Contact + Outbound Calling */}
+        <div className="space-y-6">
+          {/* Add Customer Directory */}
+          <section
+            aria-labelledby="contact-title"
+            className="card space-y-4 shadow-sm"
+          >
+            <div className="border-b border-theme-border/60 pb-3">
+              <h2 id="contact-title" className="text-base font-semibold tracking-tight text-theme-fg flex items-center gap-2">
+                <Users size={16} className="text-indigo-600 dark:text-indigo-400" />
+                2. Test contact directory
+              </h2>
+              <p className="mt-0.5 text-xs text-theme-label">
+                Add numbers authorized for test calls.
+              </p>
+            </div>
+
+            <form onSubmit={addContact} aria-busy={action === "contact"} className="space-y-3">
+              <div>
+                <label htmlFor="customer-name" className="label">
+                  Contact name <span className="font-normal text-theme-label">(optional)</span>
+                </label>
+                <input
+                  id="customer-name"
+                  autoComplete="name"
+                  className="input"
+                  value={contactName}
+                  disabled={busy || contactsLoading}
+                  onChange={(event) => setContactName(event.target.value)}
+                  placeholder="e.g. Jordan Miller"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="customer-phone" className="label">
+                  Phone number
+                </label>
+                <input
+                  id="customer-phone"
+                  type="tel"
+                  autoComplete="tel"
+                  aria-describedby="phone-hint"
+                  className="input font-mono text-xs"
+                  value={phone}
+                  disabled={busy || contactsLoading}
+                  onChange={(event) => setPhone(event.target.value)}
+                  placeholder="+14155550199"
+                  required
+                />
+                <p id="phone-hint" className="mt-1 text-[11px] text-theme-label">
+                  Include international country code prefix (e.g. +1 for US).
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={busy || contactsLoading}
+                className="btn-secondary w-full !text-xs !py-2 gap-1.5"
+              >
+                <Plus size={14} aria-hidden="true" />
+                {action === "contact" ? "Adding contact…" : "Add contact"}
+              </button>
+            </form>
+
+            <Feedback notice={contactNotice} />
+          </section>
+
+          {/* Place Outbound Call */}
+          <section
+            aria-labelledby="call-title"
+            className="card space-y-4 shadow-sm"
+          >
+            <div className="border-b border-theme-border/60 pb-3">
+              <h2 id="call-title" className="text-base font-semibold tracking-tight text-theme-fg flex items-center gap-2">
+                <PhoneCall size={16} className="text-indigo-600 dark:text-indigo-400" />
+                3. Place outbound test call
+              </h2>
+              <p className="mt-0.5 text-xs text-theme-label">
+                Dispatches a real outbound call via telephony worker.
+              </p>
+            </div>
+
+            {flowsLoading ? (
+              <div role="status" className="space-y-2">
+                <div className="h-9 rounded-lg bg-theme-surface-muted animate-pulse" />
+                <div className="h-16 rounded-lg bg-theme-surface-muted animate-pulse" />
+              </div>
+            ) : (
+              <div>
+                <label htmlFor="call-flow" className="label">
+                  Active flow version
+                </label>
+                <select
+                  id="call-flow"
+                  className="input !text-xs"
+                  value={selectedFlow}
+                  disabled={busy || flows.length === 0}
+                  onChange={(event) => {
+                    setSelectedFlow(event.target.value);
+                    setCallTarget(null);
+                  }}
+                >
+                  <option value="">Select a saved flow</option>
+                  {flows.map((flow) => (
+                    <option key={flow.id} value={flow.id}>
+                      {flow.name} (v{flow.version})
+                    </option>
+                  ))}
+                </select>
+                {!flows.length && !flowError && (
+                  <p className="mt-1 text-[11px] text-theme-label">
+                    Save the flow on the left to activate calling.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {contactsLoading ? (
+              <div role="status" className="h-16 rounded-lg bg-theme-surface-muted animate-pulse" />
+            ) : (
+              <>
+                {!contacts.length && !contactError ? (
+                  <div className="rounded-lg border border-dashed border-theme-border p-4 text-center">
+                    <p className="text-xs text-theme-label">No contacts in directory yet.</p>
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-theme-border border-t border-theme-border/60 pt-2">
+                    {contacts.map((contact) => (
+                      <li
+                        key={contact.id}
+                        className="flex flex-wrap items-center justify-between gap-2 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-theme-fg">
+                            {contact.name || "Guest contact"}
+                          </p>
+                          <p className="font-mono text-[11px] text-theme-label">
+                            {contact.phone_number}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={busy || flowsLoading || !selectedFlow}
+                          aria-label={`Prepare call to ${contact.name || contact.phone_number}`}
+                          onClick={() => {
+                            setCallTarget(contact);
+                            setCallNotice(null);
+                          }}
+                          className="btn-secondary !text-xs !py-1.5 gap-1.5"
+                        >
+                          <PhoneCall size={12} aria-hidden="true" />
+                          Call
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+
+            {/* Call Confirmation Dialog / Banner */}
+            {callTarget && (
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200 space-y-3">
+                <p className="font-semibold">Confirm live outbound call</p>
+                <p>
+                  Dial{" "}
+                  <strong className="font-mono text-theme-fg">{callTarget.phone_number}</strong>{" "}
+                  using flow &ldquo;{flows.find((f) => f.id === selectedFlow)?.name}&rdquo;?
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => startCall(callTarget)}
+                    className="btn-primary !text-xs !py-1.5 gap-1.5"
+                  >
+                    <ArrowRight size={13} aria-hidden="true" />
+                    {action === "call" ? "Dialing…" : "Place call"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setCallTarget(null)}
+                    className="btn-secondary !text-xs !py-1.5"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <Feedback notice={callNotice} />
+          </section>
+        </div>
       </div>
     </div>
   );

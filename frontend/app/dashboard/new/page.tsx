@@ -654,6 +654,12 @@ export default function NewBusiness() {
                               maxLength={3}
                               value={areaCode}
                               onChange={(event) => setAreaCode(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  void provision();
+                                }
+                              }}
                             />
                             <button
                               type="button"

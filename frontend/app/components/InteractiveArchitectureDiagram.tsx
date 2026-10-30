@@ -55,7 +55,7 @@ const stages: Stage[] = [
     id: 3,
     title: "3. Streaming Transcription",
     badge: "STT Engine",
-    protocol: "Deepgram / Sarvam Bulbul",
+    protocol: "Deepgram / Sarvam Saaras",
     icon: Headphones,
     summary: "Continuous streaming speech recognition producing interim and final word tokens.",
     details: [
@@ -83,7 +83,7 @@ const stages: Stage[] = [
     id: 5,
     title: "5. Voice Synthesis",
     badge: "TTS Stream",
-    protocol: "Cartesia / Sarvam Saaras",
+    protocol: "Cartesia / Sarvam Bulbul",
     icon: SpeakerHigh,
     summary: "Ultra-expressive natural human speech generation delivered chunk-by-chunk.",
     details: [
@@ -181,7 +181,7 @@ export function InteractiveArchitectureDiagram() {
           </div>
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-semibold text-emerald-900 bg-emerald-100 px-2.5 py-1 rounded-md">
-              Avg Latency: {current.latency}
+              Target Latency: {current.latency}
             </span>
           </div>
         </div>
