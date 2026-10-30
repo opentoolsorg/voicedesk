@@ -29,7 +29,7 @@ const links = [
   ["Appointments", "/appointments", CalendarDays],
   ["Agent", "/agent", Settings2],
   ["Phone", "/phone", Phone],
-  ["Billing", "/billing", Wallet],
+  // ["Billing", "/billing", Wallet], // OSS build has no SaaS billing
   ["Call flows", "/flow", GitBranch],
 ] as const;
 

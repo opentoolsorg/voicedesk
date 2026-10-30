@@ -521,12 +521,9 @@ export default function Overview() {
                       ${plan.price}/mo
                     </span>
                   </div>
-                  <Link
-                    href={`/dashboard/${id}/billing`}
-                    className="text-xs font-medium text-emerald-800 hover:text-emerald-900 dark:text-emerald-400 underline underline-offset-4"
-                  >
-                    Manage billing & plan →
-                  </Link>
+                  <span className="text-xs text-theme-label font-mono">
+                    Self-Hosted · Unlimited OSS
+                  </span>
                 </div>
 
                 <div>
