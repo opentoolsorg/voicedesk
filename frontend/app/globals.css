@@ -4,84 +4,121 @@
 
 @layer base {
   :root {
-    /* Brand Theme (Purple/Black/White/Gray) */
-    --theme-bg: #fafafa;
-    --theme-fg: #111111;
+    /* Brand Theme - Aligned with VoiceDesk Landing Page (Emerald + Zinc) */
+    --theme-bg: #f8f9f6;
+    --theme-fg: #18181b;
     --theme-surface: #ffffff;
-    --theme-surface-muted: #f3f0ff;
-    --theme-surface-glass: rgba(255, 255, 255, 0.8);
-    --theme-border: #e5e7eb;
-    --theme-border-muted: #ddd6fe;
-    
-    --theme-btn-primary: #111111;
-    --theme-btn-primary-hover: #000000;
+    --theme-surface-muted: #f4f4f5;
+    --theme-surface-glass: rgba(255, 255, 255, 0.9);
+    --theme-border: #e4e4e7;
+    --theme-border-muted: #a7f3d0;
+
+    --theme-btn-primary: #064e3b;
+    --theme-btn-primary-hover: #065f46;
     --theme-btn-primary-fg: #ffffff;
-    
-    --theme-btn-secondary: transparent;
-    --theme-btn-secondary-hover: #f9fafb;
-    --theme-btn-secondary-fg: #111111;
-    --theme-btn-secondary-border: #e5e7eb;
-    
-    --theme-btn-accent: #8b5cf6;
-    --theme-btn-accent-hover: #7c3aed;
+
+    --theme-btn-secondary: #ffffff;
+    --theme-btn-secondary-hover: #f4f4f5;
+    --theme-btn-secondary-fg: #18181b;
+    --theme-btn-secondary-border: #e4e4e7;
+
+    --theme-btn-accent: #047857;
+    --theme-btn-accent-hover: #065f46;
     --theme-btn-accent-fg: #ffffff;
-    --theme-btn-accent-border: #8b5cf6;
-    
-    --theme-ring: rgba(139, 92, 246, 0.2);
-    
+    --theme-btn-accent-border: #047857;
+
+    --theme-ring: rgba(6, 95, 70, 0.25);
+
     --theme-input-bg: #ffffff;
-    --theme-input-border: #e5e7eb;
-    --theme-input-border-hover: #8b5cf6;
-    --theme-input-border-focus: #ddd6fe;
-    --theme-input-fg: #111111;
-    --theme-input-placeholder: #9ca3af;
-    
-    --theme-label: #374151;
+    --theme-input-border: #e4e4e7;
+    --theme-input-border-hover: #a1a1aa;
+    --theme-input-border-focus: #065f46;
+    --theme-input-fg: #18181b;
+    --theme-input-placeholder: #71717a;
+
+    --theme-label: #71717a;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --theme-bg: #09090b;
+      --theme-fg: #f4f4f5;
+      --theme-surface: #121215;
+      --theme-surface-muted: #1c1c22;
+      --theme-surface-glass: rgba(18, 18, 21, 0.9);
+      --theme-border: #27272a;
+      --theme-border-muted: #065f46;
+
+      --theme-btn-primary: #ecfdf5;
+      --theme-btn-primary-hover: #ffffff;
+      --theme-btn-primary-fg: #064e3b;
+
+      --theme-btn-secondary: #18181b;
+      --theme-btn-secondary-hover: #27272a;
+      --theme-btn-secondary-fg: #f4f4f5;
+      --theme-btn-secondary-border: #27272a;
+
+      --theme-btn-accent: #059669;
+      --theme-btn-accent-hover: #10b981;
+      --theme-btn-accent-fg: #ffffff;
+      --theme-btn-accent-border: #059669;
+
+      --theme-ring: rgba(16, 185, 129, 0.35);
+
+      --theme-input-bg: #121215;
+      --theme-input-border: #27272a;
+      --theme-input-border-hover: #3f3f46;
+      --theme-input-border-focus: #10b981;
+      --theme-input-fg: #f4f4f5;
+      --theme-input-placeholder: #71717a;
+
+      --theme-label: #a1a1aa;
+    }
   }
 
   body {
-    @apply antialiased bg-theme-bg text-theme-fg;
+    @apply antialiased bg-theme-bg text-theme-fg selection:bg-emerald-500/30;
   }
 }
 
 @layer components {
-  /* Bento 2.0 Surfaces */
+  /* Surfaces */
   .surface {
-    @apply rounded-[1.5rem] border border-theme-border bg-theme-surface shadow-[0_0_0.5px_rgba(0,0,0,0.14),0_1px_1px_rgba(0,0,0,0.24)];
+    @apply rounded-xl border border-theme-border bg-theme-surface shadow-[0_1px_2px_0_rgba(0,0,0,0.03)];
   }
   .surface-muted {
-    @apply rounded-[1.5rem] border border-[var(--theme-border-muted)] bg-theme-surface-muted;
+    @apply rounded-xl border border-theme-border bg-theme-surface-muted;
   }
   .surface-glass {
-    @apply rounded-[2rem] border border-white/10 bg-theme-surface-glass backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.4)];
+    @apply rounded-xl border border-theme-border/60 bg-theme-surface-glass backdrop-blur-md shadow-[0_1px_3px_0_rgba(0,0,0,0.05)];
   }
 
   .card {
-    @apply surface p-5;
+    @apply surface p-5 sm:p-6;
   }
 
   /* Interactive Elements */
   .btn {
-    @apply inline-flex items-center justify-center rounded-full px-4 py-2.5 text-sm font-semibold tracking-[-0.01em] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-theme-ring focus:ring-offset-2;
+    @apply inline-flex items-center justify-center rounded-lg px-3.5 py-2 text-sm font-medium tracking-tight transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-ring focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none;
   }
   .btn:active {
-    transform: scale(0.95);
+    transform: scale(0.98);
   }
   .btn-primary {
     @apply btn border border-theme-btn-primary bg-theme-btn-primary text-theme-btn-primary-fg shadow-sm hover:bg-theme-btn-primary-hover hover:border-theme-btn-primary-hover;
   }
   .btn-secondary {
-    @apply btn border border-theme-btn-secondary-border bg-theme-btn-secondary text-theme-btn-secondary-fg hover:bg-theme-btn-secondary-hover;
+    @apply btn border border-theme-btn-secondary-border bg-theme-btn-secondary text-theme-btn-secondary-fg shadow-sm hover:bg-theme-btn-secondary-hover;
   }
   .btn-accent {
-    @apply btn border border-theme-btn-accent-border bg-theme-btn-accent text-theme-btn-accent-fg shadow-md hover:bg-theme-btn-accent-hover hover:border-theme-btn-accent-hover;
+    @apply btn border border-theme-btn-accent-border bg-theme-btn-accent text-theme-btn-accent-fg shadow-sm hover:bg-theme-btn-accent-hover hover:border-theme-btn-accent-hover;
   }
 
   /* Forms */
   .input {
-    @apply w-full rounded-xl border border-theme-input-border bg-theme-input-bg px-3.5 py-3 text-sm text-theme-input-fg shadow-sm transition duration-300 placeholder:text-theme-input-placeholder focus:border-theme-input-border-hover focus:outline-none focus:ring-2 focus:ring-theme-input-border-focus hover:border-theme-input-border-hover;
+    @apply w-full rounded-lg border border-theme-input-border bg-theme-input-bg px-3.5 py-2 text-sm text-theme-input-fg shadow-sm transition-colors duration-150 placeholder:text-theme-input-placeholder focus:border-theme-input-border-focus focus:outline-none focus:ring-2 focus:ring-theme-ring hover:border-theme-input-border-hover disabled:cursor-not-allowed disabled:opacity-60;
   }
   .label {
-    @apply mb-1.5 block text-sm font-medium text-theme-label;
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-theme-label;
   }
 }

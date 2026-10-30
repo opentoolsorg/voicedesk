@@ -1,6 +1,7 @@
 "use client";
 
 import { InteractiveArchitectureDiagram } from "./components/InteractiveArchitectureDiagram";
+import { DashboardPreview } from "./components/DashboardPreview";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -258,6 +259,7 @@ export default function Home() {
               </span>
             </div>
           </div>
+          <DashboardPreview />
         </section>
 
         {/* Real Interactive Call & Dashboard Feature Simulator */}

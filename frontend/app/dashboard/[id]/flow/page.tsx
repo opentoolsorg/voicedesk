@@ -1,7 +1,7 @@
 "use client";
 
+import { useBusinessId } from "../ui";
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
 import {
   ArrowRight,
   CheckCircle2,
@@ -46,7 +46,7 @@ function Feedback({ notice }: { notice: Notice }) {
 }
 
 export default function FlowPage() {
-  const id = usePathname().split("/")[2];
+  const id = useBusinessId();
   const [flows, setFlows] = useState<FlowVersion[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [name, setName] = useState("Standard Inbound Flow");
@@ -266,7 +266,7 @@ export default function FlowPage() {
           <div className="flex items-center justify-between border-b border-theme-border/60 pb-4">
             <div>
               <h2 id="flow-title" className="text-base font-semibold tracking-tight text-theme-fg flex items-center gap-2">
-                <GitBranch size={16} className="text-indigo-600 dark:text-indigo-400" />
+                <GitBranch size={16} className="text-emerald-800 dark:text-emerald-400" />
                 1. Conversation script & steps
               </h2>
               <p className="mt-0.5 text-xs text-theme-label">
@@ -301,7 +301,7 @@ export default function FlowPage() {
                 >
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-semibold text-theme-fg">
-                      <span className="flex h-5 w-5 items-center justify-center rounded bg-indigo-600 text-[10px] font-bold text-white">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-emerald-800 text-[10px] font-bold text-white">
                         {index + 1}
                       </span>
                       <span>Step {index + 1}</span>
@@ -401,7 +401,7 @@ export default function FlowPage() {
           >
             <div className="border-b border-theme-border/60 pb-3">
               <h2 id="contact-title" className="text-base font-semibold tracking-tight text-theme-fg flex items-center gap-2">
-                <Users size={16} className="text-indigo-600 dark:text-indigo-400" />
+                <Users size={16} className="text-emerald-800 dark:text-emerald-400" />
                 2. Test contact directory
               </h2>
               <p className="mt-0.5 text-xs text-theme-label">
@@ -466,7 +466,7 @@ export default function FlowPage() {
           >
             <div className="border-b border-theme-border/60 pb-3">
               <h2 id="call-title" className="text-base font-semibold tracking-tight text-theme-fg flex items-center gap-2">
-                <PhoneCall size={16} className="text-indigo-600 dark:text-indigo-400" />
+                <PhoneCall size={16} className="text-emerald-800 dark:text-emerald-400" />
                 3. Place outbound test call
               </h2>
               <p className="mt-0.5 text-xs text-theme-label">
@@ -554,7 +554,7 @@ export default function FlowPage() {
 
             {/* Call Confirmation Dialog / Banner */}
             {callTarget && (
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs text-indigo-950 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200 space-y-3">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs text-emerald-950 dark:border-emerald-950/60 dark:bg-emerald-950/40 dark:text-emerald-200 space-y-3">
                 <p className="font-semibold">Confirm live outbound call</p>
                 <p>
                   Dial{" "}
