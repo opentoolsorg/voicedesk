@@ -1,10 +1,10 @@
-# AgentDesk Backend
+# VoiceDesk Backend
 
-FastAPI backend for AgentDesk.
+FastAPI backend for VoiceDesk.
 
 ## What this service does
 
-The backend powers the current AgentDesk product flow:
+The backend powers the current VoiceDesk product flow:
 
 - supports the dashboard workspace
 - manages agencies and businesses

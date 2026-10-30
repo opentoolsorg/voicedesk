@@ -1,19 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Buildings, Check, MicrophoneStage } from "@phosphor-icons/react";
 import { api } from "@/lib/api";
 
 const VERTICALS = [
-  { value: "salon", label: "Salon / Spa", prompt: "Handle bookings, reminders, and missed-call recovery." },
-  { value: "restaurant", label: "Restaurant", prompt: "Capture reservations, answer common questions, and route peak-hour demand." },
-  { value: "repair", label: "Repair Shop", prompt: "Collect issue details, qualify leads, and keep inbound calls organized." },
-  { value: "general", label: "General Business", prompt: "Start with a flexible AI receptionist flow and tailor it later." },
+  { value: "salon", label: "Salon / spa", prompt: "A starting point for booking questions, reminders, and missed-call follow-up." },
+  { value: "restaurant", label: "Restaurant", prompt: "A starting point for reservations, menu questions, and busy-hour inquiries." },
+  { value: "repair", label: "Repair shop", prompt: "A starting point for collecting issue details and organizing service inquiries." },
+  { value: "general", label: "General business", prompt: "A flexible starting point for an AI receptionist. Tailor the conversation to your business." },
 ];
-
-const STEPS = ["Create the business", "Pick the starting use case", "Continue setup inside the dashboard"];
+const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700";
+const input = "min-h-12 w-full rounded-lg border border-zinc-300 bg-white px-3.5 py-3 text-sm outline-none transition-colors placeholder:text-zinc-500 hover:border-zinc-400 focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 disabled:bg-zinc-50 disabled:text-zinc-500";
 
 export default function NewBusiness() {
   const router = useRouter();
@@ -21,115 +21,82 @@ export default function NewBusiness() {
   const [vertical, setVertical] = useState("general");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [nameError, setNameError] = useState("");
+  const submitting = useRef(false);
+  const nameInput = useRef<HTMLInputElement>(null);
+  const selectedVertical = VERTICALS.find((item) => item.value === vertical) ?? VERTICALS[3];
 
-  const selectedVertical = useMemo(
-    () => VERTICALS.find((item) => item.value === vertical) ?? VERTICALS[VERTICALS.length - 1],
-    [vertical],
-  );
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (submitting.current) return;
+    if (!name.trim()) {
+      setNameError("Enter a business name, not just spaces.");
+      nameInput.current?.focus();
+      return;
+    }
+    submitting.current = true;
     setLoading(true);
     setError("");
+    setNameError("");
     try {
-      const b = await api.businesses.create({ name: name.trim(), vertical });
-      router.push(`/dashboard/${b.id}`);
+      const business = await api.businesses.create({ name: name.trim(), vertical });
+      router.push(`/dashboard/${business.id}`);
     } catch (err) {
-      setError((err as Error).message);
+      setError(err instanceof Error ? err.message : "Could not create the business. Please try again.");
+      submitting.current = false;
       setLoading(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <Link href="/dashboard" className="mb-6 inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600">
-        <ArrowLeft className="h-4 w-4" /> Back to dashboard
-      </Link>
-
-      <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700">
-            <Sparkles className="h-4 w-4" />
-            Workspace setup
+    <main className="min-h-[100dvh] bg-[#f8f9f6] text-zinc-900 [font-family:var(--font-geist-sans),sans-serif]">
+      <header className="border-b border-zinc-200 bg-white">
+        <nav aria-label="Setup navigation" className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-8">
+          <Link href="/" className={`flex items-center gap-2.5 rounded-md text-lg font-semibold tracking-tight ${focus}`}><span className="rounded-lg bg-emerald-900 p-2 text-emerald-100"><MicrophoneStage aria-hidden="true" size={18} weight="fill" /></span>VoiceDesk</Link>
+          <Link href="/dashboard" className={`inline-flex min-h-10 items-center gap-2 rounded-sm text-xs text-zinc-500 transition-colors hover:text-emerald-800 ${focus}`}><ArrowLeft aria-hidden="true" size={15} />Back to dashboard</Link>
+        </nav>
+      </header>
+      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-16">
+        <div className="mb-9 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-zinc-500" aria-label="Setup progress"><span className="font-medium text-emerald-800" aria-current="step">01 / Business</span><span aria-hidden="true">—</span><span>02 / Agent configuration</span><span aria-hidden="true">—</span><span>03 / Voice connection</span></div>
+        <div className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-x-20 lg:gap-y-8">
+          <div className="lg:pt-3">
+            <p className="text-xs font-medium text-emerald-800">A home for your agent</p>
+            <h1 className="mt-4 max-w-md text-4xl font-medium leading-[1.12] tracking-[-0.05em] sm:text-5xl">Create a business workspace</h1>
+            <p className="mt-5 max-w-md text-sm leading-7 text-zinc-600">Start with a name and a business type. Next, you’ll configure the agent’s instructions, conversation flow, and phone connection.</p>
           </div>
-          <h1 className="mt-6 text-3xl font-semibold tracking-[-0.03em] text-gray-950 sm:text-4xl">
-            Create a business workspace
-          </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-gray-600">
-            Start with the essentials, then refine prompts, routing, and number setup from inside a calmer operational workspace.
-          </p>
 
-          <div className="mt-8 space-y-3">
-            {STEPS.map((step, index) => (
-              <div key={step} className="surface rounded-2xl p-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-600 text-sm font-semibold text-white">
-                  {index + 1}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{step}</p>
-                </div>
+          <form onSubmit={submit} aria-busy={loading} aria-labelledby="form-title" className="min-w-0 overflow-hidden rounded-2xl lg:col-start-2 lg:row-start-1 lg:row-span-2 border border-zinc-200 bg-white shadow-[0_20px_60px_-40px_rgba(19,56,40,0.25)]">
+            <div className="border-b border-zinc-200 px-6 py-6 sm:px-8"><span className="mb-3 inline-flex rounded-lg bg-emerald-50 p-2 text-emerald-800"><Buildings aria-hidden="true" size={20} /></span><h2 id="form-title" className="text-xl font-medium tracking-tight">The essentials</h2><p className="mt-2 text-sm text-zinc-500">Two details to get started.</p></div>
+            <div className="space-y-6 p-6 sm:p-8">
+              <div>
+                <label htmlFor="business-name" className="mb-2 block text-sm font-medium">Business name <span className="font-normal text-zinc-500">(required)</span></label>
+                <input ref={nameInput} id="business-name" name="business-name" autoComplete="organization" className={input} placeholder="e.g. Juniper Dental" value={name} onChange={(event) => { setName(event.target.value); setNameError(""); }} aria-invalid={Boolean(nameError)} aria-describedby={nameError ? "name-error" : "name-hint"} disabled={loading} required />
+                {nameError ? <p id="name-error" role="alert" className="mt-2 text-xs text-red-700">{nameError}</p> : <p id="name-hint" className="mt-2 text-xs leading-5 text-zinc-500">Use the name you want to see in your dashboard.</p>}
               </div>
-            ))}
-          </div>
-
-          <div className="mt-8 rounded-3xl border border-violet-200 bg-violet-50/80 p-6 shadow-sm">
-            <p className="text-sm font-semibold text-violet-800">Selected use case</p>
-            <p className="mt-3 text-lg font-semibold text-gray-950">{selectedVertical.label}</p>
-            <p className="mt-2 text-sm leading-6 text-gray-600">{selectedVertical.prompt}</p>
-          </div>
+              <div>
+                <label htmlFor="business-type" className="mb-2 block text-sm font-medium">Business type</label>
+                <select id="business-type" name="business-type" className={input} value={vertical} onChange={(event) => setVertical(event.target.value)} aria-describedby="type-hint" disabled={loading}>
+                  {VERTICALS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+                <p id="type-hint" className="mt-2 text-xs leading-5 text-zinc-500">Choose the closest fit, or start with general business.</p>
+              </div>
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-4 py-4" aria-live="polite"><p className="text-xs font-medium text-emerald-900">{selectedVertical.label}</p><p className="mt-1.5 text-xs leading-6 text-emerald-900/75">{selectedVertical.prompt}</p></div>
+              {error && <div role="alert" className="break-words rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800"><p className="font-medium">Could not create the workspace.</p><p>{error}</p><p className="mt-1 text-xs">Your details are still here. Check the connection and try again.</p></div>}
+              <div><button type="submit" disabled={loading} className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-emerald-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-emerald-800 disabled:cursor-wait disabled:bg-emerald-900/60 ${focus}`}>{loading ? "Creating workspace…" : <>Create workspace <ArrowRight aria-hidden="true" size={17} /></>}</button><p role="status" className="mt-3 text-center text-xs leading-5 text-zinc-500">{loading ? "Saving your business. You’ll be taken to its workspace." : "Next: configure your agent inside the workspace."}</p></div>
+            </div>
+          </form>
+          <aside className="lg:col-start-1 lg:row-start-2">
+            <div className="border-t border-zinc-200 pt-7">
+              <h2 className="text-sm font-medium">What you’re creating</h2>
+              <ul className="mt-4 space-y-4 text-sm text-zinc-500">
+                {["A separate workspace for this business", "A place to manage the agent and its call flow", "A view of this business’s recorded calls"].map((item) => <li key={item} className="flex items-start gap-3"><Check aria-hidden="true" size={16} className="mt-0.5 shrink-0 text-emerald-700" /><span>{item}</span></li>)}
+              </ul>
+            </div>
+            <p className="mt-8 max-w-md text-xs leading-6 text-zinc-500">Creating a workspace does not connect a phone number or place a call. Voice requires provider credentials and telephony configuration.</p>
+          </aside>
         </div>
-
-        <form onSubmit={submit} className="surface p-6 sm:p-8">
-          <div className="mb-6">
-            <p className="text-sm font-medium text-gray-500">Business setup</p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-gray-950">Start a new workspace</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-500">You can refine routing, prompts, and phone setup after this first step.</p>
-          </div>
-
-          <div className="space-y-5">
-            <div>
-              <label className="label">Business name</label>
-              <input
-                className="input"
-                placeholder="Aria Salon, Joe's Diner..."
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="label">Business type</label>
-              <select className="input" value={vertical} onChange={(e) => setVertical(e.target.value)}>
-                {VERTICALS.map((v) => (
-                  <option key={v.value} value={v.value}>
-                    {v.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 text-violet-600" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">What happens next</p>
-                  <p className="mt-1 text-sm leading-6 text-gray-600">
-                    After creation, AgentDesk opens the business workspace so you can provision a number, review calls, and continue the rest of setup in context.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {error && <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
-
-            <button type="submit" disabled={loading} className="btn-primary w-full">
-              {loading ? "Creating workspace..." : "Create workspace"}
-            </button>
-          </div>
-        </form>
+        <footer className="mt-14 border-t border-zinc-200 pt-5 text-xs text-zinc-500">VoiceDesk · Open-source, self-hosted voice agents.</footer>
       </div>
-    </div>
+    </main>
   );
 }

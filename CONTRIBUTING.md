@@ -1,6 +1,6 @@
-# Contributing to AgentDesk ☎
+# Contributing to VoiceDesk ☎
 
-Thank you for your interest in contributing to AgentDesk! We want to build the most developer-friendly, robust, and zero-config AI voice receptionist platform.
+Thank you for your interest in contributing to VoiceDesk! We want to build the most developer-friendly, robust, and zero-config AI voice receptionist platform.
 
 Here is how you can help.
 
@@ -8,7 +8,7 @@ Here is how you can help.
 
 ## 🛠 Local Setup
 
-AgentDesk is divided into three components:
+VoiceDesk is divided into three components:
 1. **`cli/`** — Python interactive setup wizard.
 2. **`backend/`** — FastAPI + SQLAlchemy + LiveKit/OpenAI voice agent server.
 3. **`frontend/`** — Next.js + React Flow visual dashboard.
@@ -22,8 +22,8 @@ AgentDesk is divided into three components:
 
 1. **Fork and Clone the Repository:**
    ```bash
-   git clone https://github.com/princepal9120/agentdesk
-   cd agentdesk
+   git clone https://github.com/princepal9120/voicedesk
+   cd voicedesk
    ```
 
 2. **Initialize Local Database & Environment:**
@@ -99,4 +99,4 @@ If you add a new template, make sure to add it to the table in the main `README.
 
 By contributing, you agree your work is licensed under the same [MIT](https://opensource.org/licenses/MIT) license as this project.
 
-Thank you again for making AgentDesk amazing! 🚀
+Thank you again for making VoiceDesk amazing! 🚀

@@ -1,7 +1,7 @@
 """Provider-aware phone number assignment."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy import select
 from pydantic import BaseModel
 import uuid
@@ -61,9 +61,9 @@ class NumberOut(BaseModel):
 @router.post("/provision", response_model=NumberOut)
 async def provision_number(
     payload: ProvisionRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
-    result = await db.execute(select(Business).where(Business.id == payload.business_id))
+    result = db.execute(select(Business).where(Business.id == payload.business_id))
     business = result.scalar_one_or_none()
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
@@ -91,62 +91,60 @@ async def provision_number(
         business.phone_number = exotel_number
         business.telephony_provider = "exotel"
         business.provider_number_id = exotel_number
-        await db.commit()
+        db.commit()
         return {
             "phone_number": business.phone_number,
             "provider": "exotel",
             "provider_number_id": business.provider_number_id,
         }
 
-    from twilio.rest import Client
+    from app.services.telephony import twilio_request
 
-    client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
-
-    # Search for available number
-    available = client.available_phone_numbers("US").local.list(
-        area_code=payload.area_code,
-        voice_enabled=True,
-        limit=1,
-    )
-
-    if not available:
-        # Fallback: no area code filter
-        available = client.available_phone_numbers("US").local.list(
-            voice_enabled=True,
-            limit=1,
-        )
+    # Search for an available number, falling back to any area code
+    search = {"VoiceEnabled": "true", "PageSize": 1}
+    available = []
+    for params in ({**search, "AreaCode": payload.area_code} if payload.area_code else search, search):
+        available = (await twilio_request("GET", "AvailablePhoneNumbers/US/Local.json", params=params))[
+            "available_phone_numbers"
+        ]
+        if available:
+            break
 
     if not available:
         raise HTTPException(status_code=503, detail="No phone numbers available")
 
     # Purchase the number
     webhook_base = settings.public_base_url.rstrip("/")
-    purchased = client.incoming_phone_numbers.create(
-        phone_number=available[0].phone_number,
-        voice_url=f"{webhook_base}/webhooks/twilio/voice",
-        voice_method="POST",
-        status_callback=f"{webhook_base}/webhooks/twilio/status",
-        status_callback_method="POST",
+    purchased = await twilio_request(
+        "POST",
+        "IncomingPhoneNumbers.json",
+        data={
+            "PhoneNumber": available[0]["phone_number"],
+            "VoiceUrl": f"{webhook_base}/webhooks/twilio/voice",
+            "VoiceMethod": "POST",
+            "StatusCallback": f"{webhook_base}/webhooks/twilio/status",
+            "StatusCallbackMethod": "POST",
+        },
     )
 
     # Save to DB
-    business.phone_number = purchased.phone_number
+    business.phone_number = purchased["phone_number"]
     business.telephony_provider = "twilio"
-    business.provider_number_id = purchased.sid
-    business.twilio_sid = purchased.sid
-    await db.commit()
+    business.provider_number_id = purchased["sid"]
+    business.twilio_sid = purchased["sid"]
+    db.commit()
 
     return {
-        "phone_number": purchased.phone_number,
+        "phone_number": purchased["phone_number"],
         "provider": "twilio",
-        "provider_number_id": purchased.sid,
+        "provider_number_id": purchased["sid"],
     }
 
 
 @router.post("/business/{business_id}/provision", response_model=NumberOut)
 async def provision_business_number(
     business_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     """Dashboard-friendly alias for provisioning a workspace number."""
 
@@ -156,9 +154,9 @@ async def provision_business_number(
 @router.delete("/{business_id}/release")
 async def release_number(
     business_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
-    result = await db.execute(select(Business).where(Business.id == business_id))
+    result = db.execute(select(Business).where(Business.id == business_id))
     business = result.scalar_one_or_none()
     if not business or not business.phone_number:
         raise HTTPException(status_code=404, detail="No number to release")
@@ -168,17 +166,18 @@ async def release_number(
         # avoids releasing a shared/customer-owned trial number accidentally.
         business.phone_number = None
         business.provider_number_id = None
-        await db.commit()
+        db.commit()
         return {"released": True, "provider": "exotel"}
 
-    from twilio.rest import Client
+    from app.services.telephony import twilio_request
 
-    client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
-    client.incoming_phone_numbers(business.provider_number_id or business.twilio_sid).delete()
+    await twilio_request(
+        "DELETE", f"IncomingPhoneNumbers/{business.provider_number_id or business.twilio_sid}.json"
+    )
 
     business.phone_number = None
     business.provider_number_id = None
     business.twilio_sid = None
-    await db.commit()
+    db.commit()
 
     return {"released": True, "provider": "twilio"}

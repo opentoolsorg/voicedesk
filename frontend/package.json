@@ -1,5 +1,5 @@
 {
-  "name": "agentdesk-frontend",
+  "name": "voicedesk-frontend",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
@@ -7,8 +7,7 @@
     "dev": "next dev -p 8001",
     "build": "next build",
     "start": "next start -p 8001",
-    "build:cf": "CLOUDFLARE=1 next build",
-    "deploy:cf": "npm run build:cf && npx wrangler@latest pages deploy ./out --project-name=agentdesk"
+    "build:cf": "CLOUDFLARE=1 NEXT_PUBLIC_API_URL= next build"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

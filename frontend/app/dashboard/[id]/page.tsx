@@ -1,268 +1,139 @@
 "use client";
 
-import { useEffect, useMemo, useState, use } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { 
-  ArrowLeft, 
-  Clock, 
-  Phone, 
-  PhoneCall, 
-  PhoneDisconnect, 
-  Graph,
-  WarningCircle
-} from "@phosphor-icons/react";
+import { usePathname } from "next/navigation";
+import { ArrowLeft, ArrowRight, ArrowClockwise, Check, Graph, MicrophoneStage, Phone, PhoneCall, WarningCircle } from "@phosphor-icons/react";
 import { api, type Business, type Call } from "@/lib/api";
 
-/* Hallmark · genre: modern-minimal · macrostructure: Stat-Led · theme: Coral · enrichment: Tier C */
-
-function dur(s: number | null) {
-  if (!s) return "--";
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${m}:${String(sec).padStart(2, "0")}`;
-}
-
-function fmt(iso: string) {
-  return new Date(iso).toLocaleString();
-}
-
+const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700";
+const button = `inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-wait disabled:opacity-50 ${focus}`;
+const VERTICAL_LABELS: Record<string, string> = { salon: "Salon", restaurant: "Restaurant", repair: "Repair shop", general: "General business" };
 const STATUS_STYLES: Record<string, string> = {
-  completed: "bg-theme-surface border-theme-btn-accent/20 text-theme-btn-accent",
-  in_progress: "bg-theme-surface border-blue-200 text-blue-700",
-  missed: "bg-theme-surface border-red-200 text-red-700",
-  failed: "bg-theme-surface border-red-200 text-red-700",
+  completed: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  in_progress: "border-blue-200 bg-blue-50 text-blue-800",
+  missed: "border-amber-200 bg-amber-50 text-amber-900",
+  failed: "border-red-200 bg-red-50 text-red-800",
 };
 
-const VERTICAL_LABELS: Record<string, string> = {
-  salon: "Salon",
-  restaurant: "Restaurant",
-  repair: "Repair Shop",
-  general: "General",
-};
+function duration(seconds: number | null) {
+  if (seconds == null) return "Not recorded";
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
 
-// Framer Motion Variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
-};
+function formatDate(iso: string) {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleString();
+}
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  show: { 
-    opacity: 1, 
-    y: 0,
-    transition: { type: "spring" as const, stiffness: 100, damping: 20 }
-  },
-};
-
-export default function BusinessDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function BusinessDetail() {
+  // Static export ships one "_" shell for every id, so read the real id from the URL.
+  const id = usePathname().split("/")[2];
   const [biz, setBiz] = useState<Business | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
   const [loading, setLoading] = useState(true);
   const [provisioning, setProvisioning] = useState(false);
   const [areaCode, setAreaCode] = useState("415");
   const [error, setError] = useState("");
+  const [provisionError, setProvisionError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  const provisionPending = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    setProvisionError("");
     Promise.all([api.businesses.get(id), api.calls.list(id)])
-      .then(([b, c]) => {
-        setBiz(b);
-        setCalls(c);
+      .then(([business, callLog]) => {
+        if (cancelled) return;
+        setBiz(business);
+        setCalls(callLog);
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [id]);
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load this workspace.");
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [id, refresh]);
 
   async function provision() {
+    if (provisionPending.current) return;
+    provisionPending.current = true;
     setProvisioning(true);
-    setError("");
+    setProvisionError("");
     try {
-      const res = await api.businesses.provision(id, areaCode);
-      setBiz((prev) => (prev ? { ...prev, phone_number: res.phone_number, telephony_provider: res.provider } : prev));
-    } catch (e) {
-      setError((e as Error).message);
+      const result = await api.businesses.provision(id, areaCode);
+      setBiz((current) => current ? { ...current, phone_number: result.phone_number, telephony_provider: result.provider } : current);
+    } catch (err) {
+      setProvisionError(err instanceof Error ? err.message : "Could not provision a phone number. Please try again.");
     } finally {
+      provisionPending.current = false;
       setProvisioning(false);
     }
   }
 
-  const callStats = useMemo(
-    () => ({
-      total: calls.length,
-      completed: calls.filter((c) => c.status === "completed").length,
-      missed: calls.filter((c) => c.status === "missed" || c.status === "failed").length,
-    }),
-    [calls],
-  );
-
-  if (loading) {
-    return <div className="mx-auto max-w-[1400px] px-4 py-12 text-sm text-theme-label">Loading workspace...</div>;
-  }
-
-  if (!biz) {
-    return <div className="mx-auto max-w-[1400px] px-4 py-12 text-sm text-red-500">{error || "Business not found"}</div>;
-  }
+  const callStats = useMemo(() => ({
+    total: calls.length,
+    completed: calls.filter((call) => call.status === "completed").length,
+    missed: calls.filter((call) => call.status === "missed" || call.status === "failed").length,
+  }), [calls]);
+  const exotel = biz?.telephony_provider === "exotel";
 
   return (
-    <motion.div 
-      className="mx-auto max-w-[1400px] px-4 py-12 sm:px-6 lg:px-8"
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-    >
-      <Link href="/dashboard" className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-theme-label hover:text-theme-fg transition-colors">
-        <ArrowLeft weight="bold" className="h-4 w-4" /> Back to Workspaces
-      </Link>
-
-      <motion.div variants={itemVariants} className="surface p-8 sm:p-12 mb-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none text-theme-btn-accent">
-           <Graph size={320} weight="duotone" />
-        </div>
-        
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between relative z-10">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center rounded-full bg-theme-surface border border-theme-border-muted px-3 py-1 text-xs font-semibold uppercase tracking-wider text-theme-label shadow-sm">
-              {VERTICAL_LABELS[biz.vertical] ?? biz.vertical}
+    <div className="min-h-[100dvh] bg-[#f8f9f6] text-zinc-900 [font-family:var(--font-geist-sans),sans-serif]">
+      <header className="border-b border-zinc-200 bg-white">
+        <nav aria-label="Business navigation" className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-8">
+          <Link href="/" className={`flex items-center gap-2.5 rounded-md text-lg font-semibold tracking-tight ${focus}`}><span className="rounded-lg bg-emerald-900 p-2 text-emerald-100"><MicrophoneStage aria-hidden="true" size={18} weight="fill" /></span>VoiceDesk</Link>
+          <Link href="/dashboard" className={`inline-flex min-h-10 items-center gap-2 rounded-sm text-xs text-zinc-600 hover:text-emerald-800 ${focus}`}><ArrowLeft aria-hidden="true" size={15} />All businesses</Link>
+        </nav>
+      </header>
+      <main aria-busy={loading} className="mx-auto max-w-7xl px-5 py-9 sm:px-8 sm:py-12">
+        {loading ? (
+          <div role="status" aria-label="Loading workspace" className="space-y-6"><span className="sr-only">Loading workspace…</span><div className="h-32 rounded-xl bg-zinc-200/60 motion-safe:animate-pulse" /><div className="grid gap-6 lg:grid-cols-2"><div className="h-72 rounded-xl border border-zinc-200 bg-white motion-safe:animate-pulse" /><div className="h-72 rounded-xl border border-zinc-200 bg-white motion-safe:animate-pulse" /></div></div>
+        ) : error || !biz ? (
+          <section aria-labelledby="load-error-title" className="mx-auto max-w-lg rounded-xl border border-zinc-200 bg-white p-7"><WarningCircle aria-hidden="true" size={28} className="text-amber-700" /><h1 id="load-error-title" className="mt-4 text-xl font-medium">Workspace unavailable</h1><p role="alert" className="mt-3 break-words text-sm leading-6 text-zinc-600">{error || "This business could not be found."}</p><button onClick={() => setRefresh((value) => value + 1)} className={`${button} mt-6 bg-emerald-900 text-white hover:bg-emerald-800`}><ArrowClockwise aria-hidden="true" size={16} />Try again</button></section>
+        ) : (
+          <>
+            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+              <div className="min-w-0"><p className="text-xs font-medium text-emerald-800">Business workspace · {VERTICAL_LABELS[biz.vertical] ?? biz.vertical}</p><h1 className="mt-3 break-words text-3xl font-medium tracking-[-0.045em] sm:text-4xl">{biz.name}</h1><p className="mt-3 max-w-xl text-sm leading-6 text-zinc-600">Configure the conversation, connect a phone number, and review recorded activity.</p></div>
+              <Link href={`/dashboard/${biz.id}/flow`} className={`${button} shrink-0 self-start bg-emerald-900 text-white hover:bg-emerald-800`}><Graph aria-hidden="true" size={18} />Open flow editor<ArrowRight aria-hidden="true" size={15} /></Link>
             </div>
-            <h1 className="mt-6 text-4xl font-semibold tracking-[-0.02em] text-theme-fg sm:text-5xl leading-[1.1]">{biz.name}</h1>
-            <p className="mt-4 text-base leading-relaxed text-theme-label">
-              Review phone readiness, call activity, and the operational status of this workspace engine.
-            </p>
-          </div>
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <Link
-              href={`/dashboard/${biz.id}/flow`}
-              className="btn-secondary inline-flex w-fit items-center gap-2"
-            >
-              <Graph weight="bold" className="h-4 w-4" />
-              Visual Flow Editor
-            </Link>
-            <div className="inline-flex items-center gap-2 rounded-full border border-theme-border-muted bg-theme-surface px-4 py-2 text-sm font-semibold shadow-sm text-theme-fg">
-              <div className={`h-2 w-2 rounded-full ${biz.active ? 'bg-theme-btn-accent animate-pulse' : 'bg-theme-border-muted'}`} />
-              {biz.active ? "Active & Listening" : "Paused"}
-            </div>
-          </div>
-        </div>
+            <div className="mt-6 flex flex-wrap items-center gap-3 text-xs"><span className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 ${biz.active ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-zinc-300 bg-white text-zinc-600"}`}><span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${biz.active ? "bg-emerald-700" : "bg-zinc-500"}`} />{biz.active ? "Active configuration" : "Paused"}</span><span className="text-zinc-600">{biz.phone_number ? "Phone number assigned" : "No phone number connected"}</span></div>
 
-        <div className="mt-12 grid gap-4 sm:grid-cols-3">
-          <div className="surface-muted p-6 hover:bg-theme-surface hover:border-theme-border transition-colors border border-transparent">
-            <p className="text-sm font-medium text-theme-label">Total Calls</p>
-            <p className="mt-3 font-mono text-3xl font-semibold text-theme-fg">{callStats.total}</p>
-          </div>
-          <div className="surface-muted p-6 hover:bg-theme-surface hover:border-theme-border transition-colors border border-transparent">
-            <p className="text-sm font-medium text-theme-label">Completed</p>
-            <p className="mt-3 font-mono text-3xl font-semibold text-theme-fg">{callStats.completed}</p>
-          </div>
-          <div className="surface-muted p-6 hover:bg-theme-surface hover:border-theme-border transition-colors border border-transparent">
-            <p className="text-sm font-medium text-theme-label">Missed / Failed</p>
-            <p className="mt-3 font-mono text-3xl font-semibold text-theme-fg">{callStats.missed}</p>
-          </div>
-        </div>
-      </motion.div>
+            <section aria-label="Recent call metrics" className="mt-7 grid divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+              {[{ label: "Recent call records", value: callStats.total }, { label: "Completed", value: callStats.completed }, { label: "Missed / failed", value: callStats.missed }].map((metric) => <div key={metric.label} className="px-6 py-5"><p className="text-xs text-zinc-600">{metric.label}</p><p className="mt-2 text-3xl font-medium tabular-nums" aria-label={`${metric.label}: ${metric.value}`}>{metric.value}</p><p className="mt-2 text-[11px] text-zinc-600">From this business’s latest API records</p></div>)}
+            </section>
 
-      <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
-        <motion.div variants={itemVariants} className="surface p-8">
-          <div className="flex items-center gap-2 text-sm font-medium text-theme-btn-accent uppercase tracking-widest mb-6">
-            <Phone weight="bold" className="h-5 w-5" />
-            Telecom Provisioning
-          </div>
-
-          {biz.phone_number ? (
-            <div className="surface-muted p-6 border border-theme-btn-accent/20 bg-theme-btn-accent/5">
-              <p className="text-sm font-medium text-theme-label">Active Assigned Number</p>
-              <p className="mt-3 font-mono text-3xl font-semibold text-theme-fg tracking-tight">{biz.phone_number}</p>
-              <div className="mt-4 flex items-center gap-2 text-sm text-theme-btn-accent font-medium">
-                <div className="h-2 w-2 rounded-full bg-theme-btn-accent" />
-                Ready for inbound calls via {biz.telephony_provider === "exotel" ? "Exotel" : "Twilio"}
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-[1.5rem] border border-dashed border-theme-border-muted bg-theme-surface-muted p-6">
-              <div className="mb-6">
-                <p className="text-base font-semibold text-theme-fg">Provision a number</p>
-                <p className="mt-2 text-sm leading-relaxed text-theme-label">
-                  {biz.telephony_provider === "exotel"
-                    ? "Attach the Exotel trial ExoPhone configured in the backend environment."
-                    : "Pick a 3-digit area code to claim a dedicated Twilio number for this workspace."}
-                </p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <input
-                  className="input sm:max-w-32 font-mono"
-                  placeholder={biz.telephony_provider === "exotel" ? "Not used" : "Area code"}
-                  value={areaCode}
-                  onChange={(e) => setAreaCode(e.target.value.replace(/\D/g, "").slice(0, 3))}
-                />
-                <button className="btn-primary" onClick={provision} disabled={provisioning || (biz.telephony_provider !== "exotel" && areaCode.length !== 3)}>
-                  {provisioning ? "Provisioning..." : "Claim Number"}
-                </button>
-              </div>
-              <p className="mt-4 text-xs font-medium text-theme-label opacity-60">
-                {biz.telephony_provider === "exotel" ? "EXOTEL_CALLER_ID must be set before provisioning." : "Example: 415, 212, or 305."}
-              </p>
-            </div>
-          )}
-
-          {error && (
-            <div className="mt-6 flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-              <WarningCircle weight="fill" className="h-5 w-5" />
-              {error}
-            </div>
-          )}
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="surface p-8">
-          <div className="mb-8 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-theme-btn-accent uppercase tracking-widest">
-              <PhoneCall weight="bold" className="h-5 w-5" />
-              Recent Calls
-            </div>
-            {calls.length > 0 && <span className="font-mono text-sm font-medium bg-theme-surface-muted border border-theme-border-muted text-theme-label px-3 py-1 rounded-full">{calls.length} Total</span>}
-          </div>
-
-          {calls.length === 0 ? (
-            <div className="rounded-[1.5rem] border border-dashed border-theme-border-muted bg-theme-surface-muted px-6 py-12 text-center">
-              <PhoneDisconnect weight="duotone" className="mx-auto h-10 w-10 text-theme-border-muted mb-4" />
-              <p className="text-base font-semibold text-theme-fg">No activity yet</p>
-              <p className="mt-2 text-sm leading-relaxed text-theme-label max-w-sm mx-auto">
-                Once this workspace has an active number, real-time call transcripts and activity will stream here.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {calls.map((c) => (
-                <div key={c.id} className="surface-muted p-5 hover:bg-theme-surface border border-transparent hover:border-theme-border transition-colors">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="font-mono text-sm font-semibold text-theme-fg">{c.caller_number ?? "Unknown caller"}</p>
-                      <div className="mt-2 flex items-center gap-2 text-xs font-medium text-theme-label">
-                        <Clock weight="bold" className="h-3.5 w-3.5 opacity-60" />
-                        <span>{fmt(c.started_at)}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:items-end">
-                      <span
-                        className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider shadow-sm ${
-                          STATUS_STYLES[c.status] ?? "bg-theme-surface border-theme-border-muted text-theme-label"
-                        }`}
-                      >
-                        {c.status.replace("_", " ")}
-                      </span>
-                      <p className="text-xs font-medium text-theme-label font-mono">Duration {dur(c.duration_sec)}</p>
-                    </div>
-                  </div>
+            <div className="mt-7 grid items-start gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+              <section aria-labelledby="phone-title" className="min-w-0 rounded-xl border border-zinc-200 bg-white">
+                <div className="flex items-center justify-between gap-3 border-b border-zinc-200 p-5"><h2 id="phone-title" className="text-lg font-medium tracking-tight">Phone connection</h2><Phone aria-hidden="true" size={20} className="text-emerald-800" /></div>
+                <div className="p-5 sm:p-6">
+                  {biz.phone_number ? (
+                    <div role="status"><p className="inline-flex items-center gap-2 text-xs font-medium text-emerald-800"><Check aria-hidden="true" size={16} />Number assigned</p><p className="mt-4 break-all font-mono text-2xl font-medium tracking-tight">{biz.phone_number}</p><p className="mt-3 text-sm text-zinc-600">Provider: {exotel ? "Exotel" : "Twilio"}</p><p className="mt-5 border-t border-zinc-200 pt-4 text-xs leading-6 text-zinc-600">Review your provider and agent configuration before testing inbound calls. An assigned number alone does not verify end-to-end readiness.</p></div>
+                  ) : (
+                    <form onSubmit={(event) => { event.preventDefault(); void provision(); }} aria-busy={provisioning}>
+                      <p className="text-sm font-medium">{exotel ? "Attach your Exotel number" : "Provision a Twilio number"}</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-600">{exotel ? "Use the trial ExoPhone configured in your backend environment." : "Choose a 3-digit area code to request a dedicated number for this business."}</p>
+                      {exotel ? <p className="mt-5 rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-xs leading-6 text-zinc-600"><code className="break-all font-mono text-zinc-800">EXOTEL_CALLER_ID</code> must be configured before provisioning. An area code is not needed.</p> : <div className="mt-5"><label htmlFor="area-code" className="mb-2 block text-sm font-medium">Area code</label><input id="area-code" name="area-code" inputMode="numeric" autoComplete="off" pattern="[0-9]{3}" required maxLength={3} value={areaCode} onChange={(event) => setAreaCode(event.target.value.replace(/\D/g, "").slice(0, 3))} disabled={provisioning} aria-describedby="area-code-hint" className="min-h-12 w-full rounded-lg border border-zinc-300 px-3.5 py-3 font-mono text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15 disabled:bg-zinc-50" /><p id="area-code-hint" className="mt-2 text-xs leading-5 text-zinc-600">Three digits, such as 415, 212, or 305.</p></div>}
+                      <button type="submit" disabled={provisioning || (!exotel && areaCode.length !== 3)} className={`${button} mt-5 w-full bg-zinc-900 text-white hover:bg-emerald-900`}>{provisioning ? "Provisioning…" : exotel ? "Attach Exotel number" : "Provision Twilio number"}</button>
+                      <p role="status" className="mt-3 text-xs leading-6 text-zinc-600">{provisioning ? "Waiting for your telephony provider. Please keep this page open." : "Uses your configured provider account. Provider availability and charges may apply."}</p>
+                    </form>
+                  )}
+                  {provisionError && <div role="alert" className="mt-4 break-words rounded-lg border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800"><p className="font-medium">Could not assign a number.</p><p>{provisionError}</p><p className="mt-2 text-xs">Check your provider configuration and try again.</p></div>}
                 </div>
-              ))}
+              </section>
+
+              <section aria-labelledby="calls-title" className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+                <div className="flex items-start justify-between gap-3 border-b border-zinc-200 p-5"><div><h2 id="calls-title" className="text-lg font-medium tracking-tight">Call history</h2><p className="mt-1 text-xs leading-5 text-zinc-600">Latest API records · up to 50 calls · not a live stream</p></div><PhoneCall aria-hidden="true" size={20} className="shrink-0 text-emerald-800" /></div>
+                {calls.length === 0 ? <div className="px-6 py-10"><PhoneCall aria-hidden="true" size={28} className="text-zinc-500" /><h3 className="mt-4 font-medium">No calls recorded yet.</h3><p className="mt-2 max-w-sm text-sm leading-6 text-zinc-600">Connect your phone number and configure the agent’s call flow. Recorded calls will appear here after the API logs them.</p><Link href={`/dashboard/${biz.id}/flow`} className={`${button} mt-5 border border-zinc-300 text-zinc-800 hover:bg-zinc-50`}>Configure the flow<ArrowRight aria-hidden="true" size={15} /></Link></div> : <ul className="divide-y divide-zinc-100">{calls.map((call) => <li key={call.id} className="p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="break-all font-mono text-sm font-medium">{call.caller_number ?? "Unknown caller"}</p><p className="mt-2 text-xs tabular-nums text-zinc-600">{formatDate(call.started_at)}</p></div><span className={`rounded-md border px-2 py-1 text-[11px] capitalize ${STATUS_STYLES[call.status] ?? "border-zinc-200 bg-zinc-50 text-zinc-700"}`}>{call.status.replaceAll("_", " ")}</span></div><p className="mt-3 font-mono text-xs tabular-nums text-zinc-600">Duration {duration(call.duration_sec)}</p>{call.outcome && <p className="mt-2 break-words text-xs leading-6 text-zinc-600">{call.outcome}</p>}</li>)}</ul>}
+              </section>
             </div>
-          )}
-        </motion.div>
-      </div>
-    </motion.div>
+            <footer className="mt-10 flex flex-wrap justify-between gap-3 border-t border-zinc-200 pt-5 text-xs leading-6 text-zinc-600"><p>VoiceDesk · Your infrastructure, your configuration.</p><p>Refresh the page to load the latest call activity.</p></footer>
+          </>
+        )}
+      </main>
+    </div>
   );
 }

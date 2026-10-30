@@ -141,3 +141,29 @@ def exotel_status_callback_url() -> str:
     if settings.exotel_webhook_token:
         url += f"?token={settings.exotel_webhook_token}"
     return url
+
+
+# Twilio via plain REST + TwiML strings: the SDK is ~23 MB and would blow the Workers bundle limit.
+TWILIO_API = "https://api.twilio.com/2010-04-01/Accounts"
+
+
+async def twilio_request(method: str, path: str, **kwargs) -> dict:
+    settings = get_settings()
+    async with httpx.AsyncClient(
+        auth=(settings.twilio_account_sid, settings.twilio_auth_token), timeout=20
+    ) as client:
+        resp = await client.request(
+            method, f"{TWILIO_API}/{settings.twilio_account_sid}/{path}", **kwargs
+        )
+        resp.raise_for_status()
+        return resp.json() if resp.content else {}
+
+
+def twiml(*verbs: str) -> str:
+    return '<?xml version="1.0" encoding="UTF-8"?><Response>' + "".join(verbs) + "</Response>"
+
+
+def twiml_say_hangup(text: str) -> str:
+    from xml.sax.saxutils import escape
+
+    return twiml(f"<Say>{escape(text)}</Say>", "<Hangup/>")

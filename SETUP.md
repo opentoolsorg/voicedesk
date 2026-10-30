@@ -1,10 +1,10 @@
-# AgentDesk Setup
+# VoiceDesk Setup
 
 ## Recommended path (one command)
 
 ```bash
-git clone https://github.com/princepal9120/agentdesk.git
-cd agentdesk
+git clone https://github.com/princepal9120/voicedesk.git
+cd voicedesk
 make up
 ```
 

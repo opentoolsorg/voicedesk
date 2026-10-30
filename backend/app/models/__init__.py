@@ -1,4 +1,4 @@
-# AgentDesk Models — white-label AI voice agent platform
+# VoiceDesk Models — white-label AI voice agent platform
 
 from app.core.database import Base  # noqa: F401
 from app.models.agency import Agency  # noqa: F401

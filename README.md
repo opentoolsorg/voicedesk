@@ -1,10 +1,10 @@
-# AgentDesk ☎
+# VoiceDesk ☎
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **Run a white-label AI voice-agent dashboard locally in ONE command — no database, no keys required to boot.**
 
-AgentDesk is an open-source, white-label voice agent platform. Pick a template, answer 5 questions, and have a live AI phone agent handling real calls. The dashboard, templates, businesses, and API all run with zero configuration; voice needs one API key.
+VoiceDesk is an open-source, white-label voice agent platform. Pick a template, answer 5 questions, and have a live AI phone agent handling real calls. The dashboard, templates, businesses, and API all run with zero configuration; voice needs one API key.
 
 ```bash
 make up
@@ -30,8 +30,8 @@ make up
 ### Zero-key dashboard (recommended)
 
 ```bash
-git clone https://github.com/princepal9120/agentdesk
-cd agentdesk
+git clone https://github.com/princepal9120/voicedesk
+cd voicedesk
 make up
 ```
 
@@ -59,14 +59,31 @@ cd frontend && npm install && npm run dev
 ### Docker deployment
 
 ```bash
-git clone https://github.com/princepal9120/agentdesk
-cd agentdesk
+git clone https://github.com/princepal9120/voicedesk
+cd voicedesk
 docker compose up
 ```
 
 Open **http://localhost:3000** → dashboard ready.
 
-Live landing: **https://agentdesk.princepal.dev**
+### Deploy to Cloudflare (one command)
+
+API runs as a **Python Worker** (FastAPI) on **D1**; the dashboard is served from the same Worker as static assets. Needs `uv`, `npm`, and a Cloudflare account.
+
+```bash
+make deploy-cf        # = scripts/deploy-cloudflare.sh
+```
+
+The script logs in to wrangler if needed, builds the dashboard, deploys the Worker (creating the D1 database on first run), pushes known keys from `backend/.env` as Worker secrets, and runs `scripts/smoke_e2e.py` against the live URL. Set your own domain in `backend/wrangler.jsonc` → `routes`, or delete that block to use `*.workers.dev`.
+
+Several Cloudflare accounts? Pin one: `CLOUDFLARE_ACCOUNT_ID=<id> make deploy-cf` (wrangler otherwise reuses a cached account). The custom domain must be a zone in that same account.
+
+Local Workers dev: `cd backend && uv run --group workers pywrangler dev`.
+
+> The LiveKit voice worker (`run_agent.py`) needs a long-lived process, so it can't run on Workers. Run it with `make voice` (Docker) or on any VM, and point it at the deployed D1 so calls show up in the dashboard:
+> `DATABASE_URL=cloudflare_d1+async://<ACCOUNT_ID>:<API_TOKEN>@<D1_DATABASE_ID>` (token needs `D1:Edit`; IDs from `npx wrangler d1 info voicedesk`).
+
+Live app: **https://voicedesk.princepal.dev**
 
 ---
 
@@ -88,7 +105,7 @@ The setup wizard lets you pick a niche preset. Each template includes a battle-t
 ## 🏗 Architecture
 
 ```
-agentdesk/
+voicedesk/
 ├── cli/               # (deprecated) use `make up` for local onboarding
 ├── backend/           # FastAPI + SQLAlchemy + SQLite/Postgres
 │   ├── app/
@@ -101,7 +118,7 @@ agentdesk/
 ```
 
 **Default stack (local dev):**
-- Database: SQLite (zero install — file at `agentdesk.db`)
+- Database: SQLite (zero install — file at `voicedesk.db`)
 - Rate limiting: In-memory (no Redis needed)
 - Voice: Sarvam Saaras + Sarvam-30B + Bulbul
 

@@ -1,9 +1,9 @@
-# AgentDesk — local OSS quickstart
+# VoiceDesk — local OSS quickstart
 # Zero-key by default. Voice is one flag + one key.
 
 COMPOSE = docker compose
 
-.PHONY: setup up voice down logs ps clean
+.PHONY: setup up voice down logs ps clean deploy-cf
 
 ## setup: copy env templates if missing (non-destructive). No keys required to boot.
 setup:
@@ -33,3 +33,7 @@ ps:
 ## clean: stop and wipe the local SQLite volume
 clean:
 	$(COMPOSE) down -v
+
+## deploy-cf: deploy API (Python Worker + D1) and dashboard to your Cloudflare account
+deploy-cf:
+	scripts/deploy-cloudflare.sh

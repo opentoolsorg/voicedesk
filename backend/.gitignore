@@ -90,3 +90,14 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# Cloudflare Workers
+python_modules/
+.venv-workers/
+.wrangler/
+pylock.toml
+.dev.vars
+node_modules/
+src/app/
+src/agent/
+.secrets.json

@@ -1,0 +1,43 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "voicedesk",
+  "main": "src/worker.py",
+  // ponytail: newest date local workerd supports; bump with wrangler upgrades.
+  "compatibility_date": "2026-09-18",
+  "compatibility_flags": ["python_workers"],
+  "observability": { "enabled": true },
+  // Remove or change this if princepal.dev is not a zone on your account; workers.dev still works.
+  "routes": [{ "pattern": "voicedesk.princepal.dev", "custom_domain": true }],
+  // Adding routes turns workers.dev off by default; keep it as the always-available URL.
+  "workers_dev": true,
+  // Stage the API package next to the entrypoint so only src/ is uploaded (not .venv, tests, alembic).
+  "build": {
+    "command": "rsync -a --delete --exclude __pycache__ app agent src/",
+    "watch_dir": ["app", "agent"]
+  },
+  "vars": {
+    "APP_ENV": "production",
+    "VOICE_PROVIDER": "sarvam"
+  },
+  // Trim vendored code the Worker never imports (keeps the bundle under the size limit).
+  "python_modules": {
+    "exclude": [
+      "**/*.pyc", "**/__pycache__", "**/*.pyi",
+      "sqlalchemy/testing/**", "sqlalchemy/dialects/mysql/**", "sqlalchemy/dialects/mssql/**",
+      "sqlalchemy/dialects/oracle/**", "sqlalchemy/dialects/postgresql/**"
+    ]
+  },
+  "d1_databases": [
+    // No database_id: wrangler creates the D1 database on first deploy and writes the id back here.
+    { "binding": "DB", "database_name": "voicedesk" }
+  ],
+  "assets": {
+    "directory": "../frontend/out",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": [
+      "/api/*", "/webhooks/*", "/health",
+      "/dashboard/*", "!/dashboard/new*", "!/dashboard/_*"
+    ]
+  }
+}

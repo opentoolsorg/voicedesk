@@ -1,5 +1,5 @@
 """
-Alembic Environment Configuration — AgentDesk
+Alembic Environment Configuration — VoiceDesk
 """
 
 import asyncio

@@ -7,11 +7,11 @@ This document explains the current OpenAI-first refactor state.
 
 ## Goal
 
-Make AgentDesk easier to run with minimal configuration by supporting an OpenAI-first provider path.
+Make VoiceDesk easier to run with minimal configuration by supporting an OpenAI-first provider path.
 
 ## Current state
 
-AgentDesk now supports:
+VoiceDesk now supports:
 - `VOICE_MODE=demo`
 - `VOICE_PROVIDER=openai`
 

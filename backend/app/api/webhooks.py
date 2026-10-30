@@ -6,15 +6,16 @@ These routes are now provider-aware:
 """
 
 from fastapi import APIRouter, Request, Form, Response
-from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
-from twilio.request_validator import RequestValidator
+from xml.sax.saxutils import quoteattr
 import structlog
 import json
 
 from app.core.config import get_settings
 from app.core.database import get_db
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
+from app.core.security import verify_twilio_signature
+from app.services.telephony import twiml, twiml_say_hangup
+from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException
 from sqlalchemy import select
 from app.models.business import Business
 from app.models.call import Call
@@ -28,13 +29,26 @@ def using_full_transport() -> bool:
     return (settings.voice_provider or "openai").lower() == "full"
 
 
-@router.post("/twilio/voice")
+async def require_twilio_signature(request: Request) -> None:
+    # Enforced once TWILIO_AUTH_TOKEN is set; zero-key demo mode stays open.
+    if not settings.twilio_auth_token:
+        return
+    # Sign against the public URL: behind Cloudflare/proxies request.url scheme/host can differ.
+    url = settings.public_base_url.rstrip("/") + request.url.path
+    if request.url.query:
+        url += "?" + request.url.query
+    form = {k: v for k, v in (await request.form()).items()}
+    if not verify_twilio_signature(url, form, request.headers.get("X-Twilio-Signature", "")):
+        raise HTTPException(status_code=403, detail="invalid Twilio signature")
+
+
+@router.post("/twilio/voice", dependencies=[Depends(require_twilio_signature)])
 async def twilio_voice_inbound(
     request: Request,
     To: str = Form(...),
     From: str = Form(...),
     CallSid: str = Form(...),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     """
     Twilio webhook — called when an inbound call arrives.
@@ -43,18 +57,16 @@ async def twilio_voice_inbound(
     """
 
     if not using_full_transport():
-        response = VoiceResponse()
-        response.say(
+        response = twiml_say_hangup(
             "Thanks for calling. This number is currently running in demo mode, so live phone routing is not enabled yet. Please use the local dashboard or enable full voice mode."
         )
-        response.hangup()
         logger.info("twilio_demo_mode_blocked", to=To, from_=From, call_sid=CallSid)
-        return Response(content=str(response), media_type="application/xml")
+        return Response(content=response, media_type="application/xml")
 
     from livekit import api as lkapi
 
     # Look up business by phone number
-    result = await db.execute(
+    result = db.execute(
         select(Business).where(
             Business.phone_number == To,
             Business.active == True,
@@ -64,10 +76,8 @@ async def twilio_voice_inbound(
 
     if not business:
         logger.warning("twilio_call_no_business", to=To, from_=From)
-        response = VoiceResponse()
-        response.say("We're sorry, this number is not configured. Goodbye.")
-        response.hangup()
-        return Response(content=str(response), media_type="application/xml")
+        response = twiml_say_hangup("We're sorry, this number is not configured. Goodbye.")
+        return Response(content=response, media_type="application/xml")
 
     # Create a LiveKit room with business metadata
     room_name = f"call-{CallSid}"
@@ -101,19 +111,18 @@ async def twilio_voice_inbound(
      .to_jwt()
 
     # Return TwiML that connects the call to LiveKit via SIP/WebSocket
-    response = VoiceResponse()
-    connect = Connect()
-    stream = Stream(url=f"{settings.livekit_url}/sip")
-    stream.parameter(name="token", value=token)
-    stream.parameter(name="roomName", value=room_name)
-    connect.append(stream)
-    response.append(connect)
+    response = twiml(
+        f"<Connect><Stream url={quoteattr(settings.livekit_url + '/sip')}>"
+        f"<Parameter name=\"token\" value={quoteattr(token)}/>"
+        f"<Parameter name=\"roomName\" value={quoteattr(room_name)}/>"
+        "</Stream></Connect>"
+    )
 
     logger.info("twilio_call_routed", business=business.name, room=room_name)
-    return Response(content=str(response), media_type="application/xml")
+    return Response(content=response, media_type="application/xml")
 
 
-@router.post("/twilio/status")
+@router.post("/twilio/status", dependencies=[Depends(require_twilio_signature)])
 async def twilio_call_status(
     request: Request,
     CallSid: str = Form(...),
@@ -126,7 +135,7 @@ async def twilio_call_status(
 
 
 @router.post("/exotel/status")
-async def exotel_call_status(request: Request):
+async def exotel_call_status(request: Request, db: Session = Depends(get_db)):
     """Accept Exotel terminal/answered callbacks for reminder and SIP calls."""
 
     expected_token = settings.exotel_webhook_token
@@ -150,27 +159,24 @@ async def exotel_call_status(request: Request):
     # The callback is intentionally idempotent.  Exotel can send both answered
     # and terminal events, and the call may not have a local record for a trial
     # smoke test.
-    from app.core.database import AsyncSessionLocal
-
     if call_sid:
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(select(Call).where(Call.provider_call_id == str(call_sid)))
-            call = result.scalar_one_or_none()
-            if call:
-                call.status = {
-                    "completed": "answered",
-                    "in-progress": "in_progress",
-                    "answered": "answered",
-                    "failed": "failed",
-                    "busy": "missed",
-                    "no-answer": "missed",
-                }.get(str(status).lower(), str(status).lower())
-                if call_payload.get("RecordingUrl") or call_payload.get("recording_url"):
-                    call.recording_url = (
-                        call_payload.get("RecordingUrl")
-                        or call_payload.get("recording_url")
-                    )
-                await db.commit()
+        result = db.execute(select(Call).where(Call.provider_call_id == str(call_sid)))
+        call = result.scalar_one_or_none()
+        if call:
+            call.status = {
+                "completed": "answered",
+                "in-progress": "in_progress",
+                "answered": "answered",
+                "failed": "failed",
+                "busy": "missed",
+                "no-answer": "missed",
+            }.get(str(status).lower(), str(status).lower())
+            if call_payload.get("RecordingUrl") or call_payload.get("recording_url"):
+                call.recording_url = (
+                    call_payload.get("RecordingUrl")
+                    or call_payload.get("recording_url")
+                )
+            db.commit()
 
     logger.info("exotel_call_status", sid=call_sid, status=status)
     return {"ok": True}

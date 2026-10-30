@@ -1,6 +1,6 @@
-# Exotel trial + AgentDesk
+# Exotel trial + VoiceDesk
 
-This is the supported Indian/local-number setup for AgentDesk. Exotel's trial
+This is the supported Indian/local-number setup for VoiceDesk. Exotel's trial
 assigns an ExoPhone; it does not attach a normal personal SIM number directly
 to cloud code.
 
@@ -23,7 +23,7 @@ PUBLIC_BASE_URL=https://your-public-api.example.com
 ```
 
 `EXOTEL_CALLER_ID` must be the verified ExoPhone in E.164 format. Restart the
-backend, then open a workspace and click **Claim Number**. AgentDesk will attach
+backend, then open a workspace and click **Claim Number**. VoiceDesk will attach
 that ExoPhone to the workspace.
 
 ## 2. Test a reminder call through an Exotel Flow
@@ -45,7 +45,7 @@ POST {PUBLIC_BASE_URL}/webhooks/exotel/status
 This is the fastest trial path. Exotel calls the customer and connects them to
 the configured Flow.
 
-## 3. Connect conversational AgentDesk calls through LiveKit SIP
+## 3. Connect conversational VoiceDesk calls through LiveKit SIP
 
 Enable LiveKit Cloud Telephony and configure an Exotel SIP trunk. Exotel's
 official LiveKit guide requires:
@@ -53,7 +53,7 @@ official LiveKit guide requires:
 1. An Exotel DID, KYC, and SIP trunk.
 2. A LiveKit inbound trunk containing that DID.
 3. A LiveKit individual dispatch rule that creates `call-` rooms and dispatches
-   the AgentDesk worker.
+   the VoiceDesk worker.
 4. The Exotel trunk destination URI set to the LiveKit SIP endpoint.
 5. An Exotel SIP digest credential for outbound calls.
 
@@ -66,7 +66,7 @@ EXOTEL_SIP_USERNAME=...
 EXOTEL_SIP_PASSWORD=...
 ```
 
-Then call the AgentDesk API:
+Then call the VoiceDesk API:
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/calls/outbound \
@@ -79,7 +79,7 @@ curl -X POST http://localhost:8000/api/v1/calls/outbound \
 ```
 
 The API creates a LiveKit room, writes the business/reminder metadata, and
-creates a SIP participant through Exotel. The running AgentDesk worker answers
+creates a SIP participant through Exotel. The running VoiceDesk worker answers
 the room.
 
 Use the exact SIP edge hostname and port Exotel assigns to your account. Do not
@@ -90,7 +90,7 @@ assume that one region or port works for every account.
 - `EXOTEL_CALLER_ID` missing: set it to the trial ExoPhone and restart the API.
 - `401`: check API key/token/account SID and use the Mumbai API base URL.
 - `403`/SIP failure: check Exotel digest credentials and LiveKit trunk config.
-- Ringing with no agent audio: ensure the AgentDesk worker is running and the
+- Ringing with no agent audio: ensure the VoiceDesk worker is running and the
   LiveKit room has an agent dispatched.
 - Inbound call not routed: verify the Exotel Flow uses `sip:<trunk_sid>` and its
   destination URI points to LiveKit.

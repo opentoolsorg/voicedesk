@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AgentDesk voice agent runner.
+VoiceDesk voice agent runner.
 
 Modes:
 - demo: local-first onboarding mode, skips hard failure when full voice stack is not configured
@@ -30,7 +30,7 @@ def setup_logging():
 def print_banner(settings):
     print("""
 ╔════════════════════════════════════════════════════════════╗
-║                     AgentDesk Worker                      ║
+║                     VoiceDesk Worker                      ║
 ╚════════════════════════════════════════════════════════════╝
     """)
     print(f"Mode:         {settings.voice_mode}")

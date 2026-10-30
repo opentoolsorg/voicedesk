@@ -1,5 +1,5 @@
 """
-AgentDesk Voice Agent — Core LiveKit agent class.
+VoiceDesk Voice Agent — Core LiveKit agent class.
 
 Architecture:
   Exotel/Twilio SIP → LiveKit room → This agent
@@ -29,7 +29,7 @@ from agent.tools import get_tools_for_template
 from agent.flow_runtime import flow_instructions
 from app.core.config import get_settings
 
-logger = logging.getLogger("agentdesk.agent")
+logger = logging.getLogger("voicedesk.agent")
 settings = get_settings()
 
 

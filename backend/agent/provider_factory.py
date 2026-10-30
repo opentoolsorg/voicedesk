@@ -1,4 +1,4 @@
-"""Provider selection helpers for AgentDesk voice runtime.
+"""Provider selection helpers for VoiceDesk voice runtime.
 
 This file creates a clean boundary between:
 - conversation logic and tools
