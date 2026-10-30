@@ -1,195 +1,497 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
   ArrowUpRight,
   Check,
   CodeBlock,
+  Cpu,
+  Database,
+  GitBranch,
   GithubLogo,
+  Globe,
   MicrophoneStage,
   Phone,
-  Stack,
+  PhoneCall,
+  ShieldCheck,
+  Sparkle,
+  Star,
   TerminalWindow,
   TreeStructure,
-} from "@phosphor-icons/react/dist/ssr";
+  Users,
+} from "@phosphor-icons/react";
 
-const repository = "https://github.com/princepal9120/voicedesk";
+const repository = "https://github.com/opentoolsorg/voicedesk";
 const focus = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700";
 
-const steps = [
-  {
-    title: "Give your agent a business.",
-    description: "Create a workspace, choose a business type, and keep each client’s configuration in its own place.",
-    detail: "01 / Set the context",
-  },
-  {
-    title: "Make the conversation yours.",
-    description: "Configure the prompt, knowledge, and call flow. Inspect the logic before connecting it to a phone number.",
-    detail: "02 / Shape the flow",
-  },
-  {
-    title: "Connect voice. Review the calls.",
-    description: "Configure your voice and telephony providers, then use call logs and transcripts to understand what happened.",
-    detail: "03 / Connect and learn",
-  },
+const templates = [
+  { id: "dental", name: "Dental Clinic", agent: "Aria", tag: "Healthcare", desc: "Handles patient appointment bookings, insurance queries, and clinic directions." },
+  { id: "restaurant", name: "Restaurant Host", agent: "Bella", tag: "Hospitality", desc: "Manages table reservations, dietary questions, and operating hours." },
+  { id: "real-estate", name: "Real Estate Broker", agent: "Max", tag: "Sales", desc: "Qualifies inbound buyers, captures budget requirements, and schedules viewings." },
+  { id: "ecommerce", name: "Support & Orders", agent: "Nova", tag: "E-Commerce", desc: "Answers shipping questions, checks order status, and processes return requests." },
+  { id: "hr", name: "HR Screening", agent: "Sam", tag: "Recruitment", desc: "Performs initial candidate phone screenings and logs candidate answers." },
+  { id: "custom", name: "Blank Scaffold", agent: "Alex", tag: "Flexible", desc: "Build custom prompts and tool calls for bespoke business logic." },
+];
+
+const selfHostFeatures = [
+  { icon: Database, title: "Zero Database Overhead", desc: "Runs locally on SQLite with no external dependencies, or on Cloudflare D1 serverlessly." },
+  { icon: ShieldCheck, title: "Self-Hosted & Private", desc: "Your customer data, call logs, and credentials stay entirely under your own infrastructure control." },
+  { icon: PhoneCall, title: "Carrier Neutral", desc: "Integrates with Twilio PSTN or Exotel SIP without locking you into proprietary phone ecosystems." },
+  { icon: Cpu, title: "Any LLM & Voice Stack", desc: "Pairs with LiveKit, Deepgram, Sarvam AI, OpenAI, and Cartesia voice models seamlessly." },
 ];
 
 export default function Home() {
+  const [stars, setStars] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("https://api.github.com/repos/opentoolsorg/voicedesk")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.stargazers_count === "number") {
+          setStars(data.stargazers_count);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-[100dvh] bg-[#f8f9f6] text-zinc-900 [font-family:var(--font-geist-sans),sans-serif] selection:bg-emerald-200">
       <a href="#main" className={`sr-only fixed left-4 top-4 z-50 rounded-lg bg-white px-4 py-3 focus:not-sr-only ${focus}`}>
         Skip to content
       </a>
-      <header className="border-b border-zinc-200/80">
-        <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
+
+      {/* Sticky Top Banner / Header */}
+      <header className="sticky top-0 z-40 border-b border-zinc-200/80 bg-[#f8f9f6]/90 backdrop-blur-md">
+        <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="/" aria-label="VoiceDesk home" className={`flex items-center gap-2.5 rounded-md ${focus}`}>
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-900 text-emerald-100">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-900 text-emerald-100 shadow-sm">
               <MicrophoneStage aria-hidden="true" weight="fill" size={20} />
             </span>
-            <span className="text-xl font-semibold tracking-[-0.05em]">VoiceDesk<span className="text-emerald-700">.</span></span>
+            <span className="text-xl font-semibold tracking-[-0.05em]">
+              VoiceDesk<span className="text-emerald-700">.</span>
+            </span>
           </Link>
-          <div className="hidden items-center gap-7 text-sm text-zinc-600 md:flex">
-            <a href="#workflow" className={`rounded-sm transition-colors hover:text-zinc-950 ${focus}`}>How it works</a>
-            <a href="#self-host" className={`rounded-sm transition-colors hover:text-zinc-950 ${focus}`}>Self-host</a>
-            <a href={repository} className={`flex items-center gap-1.5 rounded-sm transition-colors hover:text-zinc-950 ${focus}`}>
-              <GithubLogo aria-hidden="true" size={17} /> Source code
+
+          <div className="hidden items-center gap-7 text-sm font-medium text-zinc-600 md:flex">
+            <a href="#features" className={`rounded-sm transition-colors hover:text-zinc-950 ${focus}`}>Features</a>
+            <a href="#templates" className={`rounded-sm transition-colors hover:text-zinc-950 ${focus}`}>Templates</a>
+            <a href="#self-host" className={`rounded-sm transition-colors hover:text-zinc-950 ${focus}`}>Self-Host</a>
+            <a href="#architecture" className={`rounded-sm transition-colors hover:text-zinc-950 ${focus}`}>Architecture</a>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <a
+              href={repository}
+              target="_blank"
+              rel="noreferrer"
+              className={`inline-flex min-h-10 items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-xs font-medium text-zinc-800 shadow-sm transition-colors hover:border-zinc-400 hover:bg-zinc-50 ${focus}`}
+              aria-label="Star VoiceDesk on GitHub"
+            >
+              <GithubLogo aria-hidden="true" size={17} weight="bold" />
+              <span>Star</span>
+              <span className="flex items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700">
+                <Star aria-hidden="true" size={12} weight="fill" className="text-amber-500" />
+                {stars !== null ? stars : "13"}
+              </span>
+            </a>
+            <a
+              href="#self-host"
+              className={`inline-flex min-h-10 items-center gap-2 rounded-lg bg-emerald-900 px-4 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-emerald-800 active:bg-emerald-950 ${focus}`}
+            >
+              Deploy now <ArrowRight aria-hidden="true" size={14} />
             </a>
           </div>
-          <Link href="/dashboard" className={`inline-flex min-h-10 items-center gap-2 rounded-lg bg-zinc-900 px-3.5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-900 active:bg-emerald-950 ${focus}`}>
-            Open dashboard <ArrowUpRight aria-hidden="true" size={16} />
-          </Link>
         </nav>
       </header>
 
       <main id="main">
-        <section aria-labelledby="hero-title" className="mx-auto grid max-w-7xl gap-12 px-5 pb-16 pt-14 sm:px-8 sm:pt-20 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-14 lg:pb-24 lg:pt-24">
-          <div>
-            <p className="inline-flex items-center gap-2 text-xs font-medium tracking-wide text-emerald-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-700" aria-hidden="true" />
-              Open source. Self-hosted. Yours to build.
-            </p>
-            <h1 id="hero-title" className="mt-6 max-w-xl text-5xl font-medium leading-[1.06] tracking-[-0.065em] [text-wrap:balance] sm:text-6xl lg:text-[4.25rem]">
-              Your voice agents.<br /><span className="text-emerald-800">Your own stack.</span>
+        {/* Hero Section */}
+        <section aria-labelledby="hero-title" className="relative mx-auto max-w-7xl px-5 pb-16 pt-16 sm:px-8 sm:pt-24 lg:pb-24 lg:pt-28">
+          <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-3.5 py-1 text-xs font-semibold text-emerald-900 shadow-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-700 animate-pulse" aria-hidden="true" />
+              <span>100% Open Source · Self-Hosted Voice Infrastructure</span>
+            </div>
+
+            <h1 id="hero-title" className="mt-7 text-5xl font-semibold leading-[1.08] tracking-[-0.055em] text-zinc-950 sm:text-6xl lg:text-[4.5rem]">
+              Autonomous phone agents.<br />
+              <span className="text-emerald-800">Deployed on your terms.</span>
             </h1>
-            <p className="mt-6 max-w-lg text-lg leading-8 text-zinc-600">
-              Build AI phone agents for real businesses. Manage workspaces, shape conversations, and review calls in one open-source dashboard.
+
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-600 sm:text-xl">
+              VoiceDesk is the white-label AI voice platform you can inspect, customize, and self-host. Pick a template, design conversational flows, and connect real telephony—with zero vendor lock-in.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-5">
-              <Link href="/dashboard" className={`inline-flex min-h-12 items-center justify-center gap-3 rounded-lg bg-emerald-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-emerald-800 active:bg-emerald-950 ${focus}`}>
-                Explore the workspace <ArrowRight aria-hidden="true" size={18} />
-              </Link>
-              <a href="#self-host" className={`inline-flex min-h-12 items-center gap-2 rounded-sm text-sm font-medium underline decoration-zinc-300 underline-offset-4 transition-colors hover:text-emerald-800 ${focus}`}>
-                Run it locally <TerminalWindow aria-hidden="true" size={18} />
+
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
+              <a
+                href="#self-host"
+                className={`inline-flex min-h-12 items-center justify-center gap-2.5 rounded-lg bg-emerald-900 px-6 py-3.5 text-sm font-medium text-white shadow transition-all hover:bg-emerald-800 active:bg-emerald-950 ${focus}`}
+              >
+                <TerminalWindow aria-hidden="true" size={18} />
+                Deploy in one command
+              </a>
+              <a
+                href={repository}
+                target="_blank"
+                rel="noreferrer"
+                className={`inline-flex min-h-12 items-center justify-center gap-2.5 rounded-lg border border-zinc-300 bg-white px-6 py-3.5 text-sm font-medium text-zinc-800 shadow-sm transition-all hover:border-zinc-400 hover:bg-zinc-50 ${focus}`}
+              >
+                <GithubLogo aria-hidden="true" size={18} />
+                Explore on GitHub
+                <span className="flex items-center gap-1 rounded bg-zinc-100 px-2 py-0.5 text-xs font-bold text-zinc-800">
+                  ★ {stars !== null ? stars : "13"}
+                </span>
               </a>
             </div>
-            <div className="mt-9 flex flex-wrap gap-x-5 gap-y-3 border-t border-zinc-200 pt-5 text-xs text-zinc-600">
-              {["MIT licensed", "Docker quickstart", "No keys needed to boot"].map((item) => (
-                <span key={item} className="flex items-center gap-1.5"><Check aria-hidden="true" size={14} className="text-emerald-700" />{item}</span>
+
+            {/* Quick Proof Badges */}
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 border-t border-zinc-200/80 pt-6 text-xs font-medium text-zinc-600">
+              <span className="flex items-center gap-1.5">
+                <Check aria-hidden="true" size={15} className="text-emerald-700" /> MIT Licensed & Free
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check aria-hidden="true" size={15} className="text-emerald-700" /> Boots locally with Zero Keys
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check aria-hidden="true" size={15} className="text-emerald-700" /> Python Workers & D1 Native
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Check aria-hidden="true" size={15} className="text-emerald-700" /> Carrier Agnostic (Twilio / Exotel)
+              </span>
+            </div>
+          </div>
+
+          {/* Interactive Platform Mockup */}
+          <div className="mt-16 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_30px_90px_-40px_rgba(19,56,40,0.25)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-[#f9faf7] px-5 py-3.5 text-xs text-zinc-500">
+              <div className="flex items-center gap-2 font-mono">
+                <span className="h-3 w-3 rounded-full bg-red-400/80 inline-block" />
+                <span className="h-3 w-3 rounded-full bg-amber-400/80 inline-block" />
+                <span className="h-3 w-3 rounded-full bg-emerald-400/80 inline-block" />
+                <span className="ml-2 font-sans font-medium text-zinc-700">voicedesk.princepal.dev/dashboard</span>
+              </div>
+              <span className="rounded border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-emerald-900">
+                Self-Hosted Operational Core
+              </span>
+            </div>
+
+            <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.3fr_0.9fr]">
+              {/* Left Column: Flow Canvas & State */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">Active Workflow: Receptionist & Triage</p>
+                    <p className="text-xs text-zinc-500">Inbound caller routing & calendar booking</p>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" /> Ready
+                  </span>
+                </div>
+
+                <div className="rounded-xl border border-zinc-200 bg-[#fafbf9] p-4 font-mono text-xs text-zinc-700">
+                  <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-2">
+                    <span>CALL FLOW PIPELINE</span>
+                    <span>LATENCY: &lt;500ms</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded bg-white border border-zinc-200 px-2.5 py-1.5 shadow-sm">1. Greeting</span>
+                    <ArrowRight size={14} className="text-zinc-400" />
+                    <span className="rounded bg-emerald-50 border border-emerald-300 px-2.5 py-1.5 font-semibold text-emerald-900 shadow-sm">2. Intent Classification</span>
+                    <ArrowRight size={14} className="text-zinc-400" />
+                    <span className="rounded bg-white border border-zinc-200 px-2.5 py-1.5 shadow-sm">3. Calendar Tool</span>
+                    <ArrowRight size={14} className="text-zinc-400" />
+                    <span className="rounded bg-white border border-zinc-200 px-2.5 py-1.5 shadow-sm">4. SMS Confirm</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                    <p className="text-[11px] text-zinc-500">Carrier</p>
+                    <p className="mt-1 font-semibold text-zinc-900">Twilio / Exotel</p>
+                  </div>
+                  <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                    <p className="text-[11px] text-zinc-500">Audio Transport</p>
+                    <p className="mt-1 font-semibold text-zinc-900">LiveKit WebRTC</p>
+                  </div>
+                  <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                    <p className="text-[11px] text-zinc-500">Voice Synthesis</p>
+                    <p className="mt-1 font-semibold text-zinc-900">Cartesia / Sarvam</p>
+                  </div>
+                  <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                    <p className="text-[11px] text-zinc-500">LLM Engine</p>
+                    <p className="mt-1 font-semibold text-zinc-900">OpenAI / Claude</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Live Call Transcript Simulator */}
+              <div className="rounded-xl border border-zinc-200 bg-zinc-900 p-4 text-zinc-100 shadow-inner flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5 text-xs text-zinc-400">
+                    <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" /> Real-time Call Preview
+                    </span>
+                    <span className="font-mono">+1 (415) 555-0184</span>
+                  </div>
+                  <div className="mt-3.5 space-y-2.5 text-xs">
+                    <div className="rounded-lg bg-zinc-800/80 p-2.5">
+                      <span className="font-semibold text-emerald-400">Agent:</span> Thank you for calling Northline Clinic. I can schedule your cleaning or check insurance eligibility. How can I help today?
+                    </div>
+                    <div className="rounded-lg bg-zinc-800/50 p-2.5 text-zinc-300">
+                      <span className="font-semibold text-zinc-400">Caller:</span> Hi, I need to book a cleaning for next Tuesday afternoon if possible.
+                    </div>
+                    <div className="rounded-lg bg-zinc-800/80 p-2.5">
+                      <span className="font-semibold text-emerald-400">Agent:</span> I have a 2:30 PM slot with Dr. Taylor on Tuesday. Would that work for you?
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 border-t border-zinc-800 pt-2.5 text-[11px] text-zinc-400 flex items-center justify-between">
+                  <span>Structured outcome: Booked Appointment</span>
+                  <span className="font-mono text-emerald-400">Status: 200 OK</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Feature Highlights Grid */}
+        <section id="features" aria-labelledby="features-title" className="border-t border-zinc-200/80 bg-white py-16 sm:py-24">
+          <div className="mx-auto max-w-7xl px-5 sm:px-8">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">Enterprise Control</p>
+              <h2 id="features-title" className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-zinc-950 sm:text-4xl">
+                Everything you need to run AI voice in production.
+              </h2>
+              <p className="mt-4 text-base text-zinc-600">
+                Proprietary voice platforms bill high per-minute margins and keep your prompt logic in closed boxes. VoiceDesk gives you full autonomy.
+              </p>
+            </div>
+
+            <div className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              {selfHostFeatures.map((feat) => {
+                const Icon = feat.icon;
+                return (
+                  <div key={feat.title} className="rounded-xl border border-zinc-200 bg-[#fbfcf9] p-6 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-900 text-emerald-100 shadow-sm">
+                      <Icon size={22} weight="duotone" />
+                    </div>
+                    <h3 className="mt-5 text-base font-semibold text-zinc-900">{feat.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-zinc-600">{feat.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Niche Templates Section */}
+        <section id="templates" aria-labelledby="templates-title" className="border-t border-zinc-200/80 bg-[#f8f9f6] py-16 sm:py-24">
+          <div className="mx-auto max-w-7xl px-5 sm:px-8">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">Battle-tested Presets</p>
+                <h2 id="templates-title" className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-zinc-950 sm:text-4xl">
+                  Launch industry-ready agents in minutes.
+                </h2>
+                <p className="mt-3 max-w-xl text-sm text-zinc-600">
+                  Pre-configured prompt heuristics, function calling schemas, and recovery fallback routines for high-demand business verticals.
+                </p>
+              </div>
+              <a
+                href={repository}
+                target="_blank"
+                rel="noreferrer"
+                className={`inline-flex min-h-10 items-center gap-1.5 text-xs font-semibold text-emerald-800 hover:text-emerald-950 ${focus}`}
+              >
+                View template schemas on GitHub <ArrowUpRight size={15} />
+              </a>
+            </div>
+
+            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {templates.map((tmpl) => (
+                <div key={tmpl.id} className="flex flex-col justify-between rounded-xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:border-emerald-300 hover:shadow">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold text-zinc-700">
+                        {tmpl.tag}
+                      </span>
+                      <span className="font-mono text-xs text-zinc-400">Agent: {tmpl.agent}</span>
+                    </div>
+                    <h3 className="mt-4 text-lg font-semibold text-zinc-900">{tmpl.name}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-zinc-600">{tmpl.desc}</p>
+                  </div>
+                  <div className="mt-6 border-t border-zinc-100 pt-4 flex items-center justify-between text-xs font-medium text-emerald-800">
+                    <span>Prompt & Tool schema included</span>
+                    <Check size={16} />
+                  </div>
+                </div>
               ))}
             </div>
           </div>
+        </section>
 
-          <figure className="min-w-0 rounded-2xl border border-zinc-200 bg-white p-2 shadow-[0_24px_70px_-35px_rgba(19,56,40,0.3)] sm:p-3">
-            <figcaption className="flex flex-wrap items-center justify-between gap-2 px-3 pb-3 pt-2 text-xs text-zinc-500">
-              <span className="flex items-center gap-2"><Stack aria-hidden="true" size={15} /> Inside VoiceDesk</span>
-              <span className="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-[10px] font-medium">Illustrative workflow · not live data</span>
-            </figcaption>
-            <div className="rounded-xl border border-zinc-200 bg-[#fafbf9]">
-              <div className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 sm:px-5">
-                <div><p className="text-sm font-semibold">Business workspace</p><p className="mt-1 text-xs text-zinc-500">Configure → connect → review</p></div>
-                <span className="rounded-md bg-emerald-50 p-2 text-emerald-800"><TreeStructure aria-hidden="true" size={20} /></span>
-              </div>
-              <div className="grid grid-cols-[2rem_1fr] gap-x-3 px-4 py-6 sm:px-6">
-                <div className="flex flex-col items-center" aria-hidden="true"><span className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-white text-emerald-800"><Stack size={17} /></span><span className="min-h-8 w-px flex-1 bg-zinc-200" /></div>
-                <div className="pb-6"><p className="text-sm font-medium">Business context</p><p className="mt-1.5 text-xs leading-5 text-zinc-500">Name, business type, and agent configuration</p></div>
-                <div className="flex flex-col items-center" aria-hidden="true"><span className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800"><TreeStructure size={17} /></span><span className="min-h-8 w-px flex-1 bg-zinc-200" /></div>
-                <div className="pb-6">
-                  <p className="text-sm font-medium">Conversation flow</p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-zinc-600">
-                    <span className="rounded-md border border-zinc-200 bg-white px-2.5 py-2">Greeting</span><ArrowRight aria-hidden="true" size={12} /><span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-emerald-900">Understand intent</span><ArrowRight aria-hidden="true" size={12} /><span className="rounded-md border border-zinc-200 bg-white px-2.5 py-2">Respond</span>
+        {/* Self-Host & Deployment Quickstart */}
+        <section id="self-host" aria-labelledby="hosting-title" className="border-t border-zinc-200/80 bg-white py-16 sm:py-24">
+          <div className="mx-auto max-w-7xl px-5 sm:px-8">
+            <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
+              <div>
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-800">
+                  <CodeBlock size={17} /> Developer-First Architecture
+                </p>
+                <h2 id="hosting-title" className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-zinc-950 sm:text-4xl">
+                  Run locally with zero keys.<br />Deploy to Cloudflare in one command.
+                </h2>
+                <p className="mt-5 text-sm leading-relaxed text-zinc-600">
+                  Start developing on your laptop without configuring credentials, databases, or API tokens. When you are ready for cloud hosting, deploy the FastAPI backend as a Cloudflare Python Worker backed by Cloudflare D1 with automatic assets binding.
+                </p>
+
+                <div className="mt-8 space-y-4">
+                  <div className="flex items-start gap-3.5">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-900">1</span>
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-900">Zero-Key Local Boot</p>
+                      <p className="text-xs leading-5 text-zinc-600">Clone the repository and run <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-zinc-800">make up</code>. The UI and REST endpoints run out-of-the-box.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3.5">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-900">2</span>
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-900">Connect Telephony When Ready</p>
+                      <p className="text-xs leading-5 text-zinc-600">Add an OpenAI or Sarvam key to <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-zinc-800">backend/.env</code> and run <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-zinc-800">make voice</code> for live WebRTC audio.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3.5">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-900">3</span>
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-900">Deploy Serverlessly</p>
+                      <p className="text-xs leading-5 text-zinc-600">Run <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-zinc-800">make deploy-cf</code> to provision Cloudflare D1 and publish the Python Worker.</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex justify-center" aria-hidden="true"><span className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-white text-emerald-800"><Phone size={17} /></span></div>
-                <div><p className="text-sm font-medium">Voice connection</p><p className="mt-1.5 text-xs leading-5 text-zinc-500">Requires provider credentials and telephony setup</p></div>
               </div>
-              <div className="mx-4 mb-4 rounded-lg border border-dashed border-zinc-300 bg-white px-4 py-3 sm:mx-5">
-                <p className="text-xs font-medium">Call history and transcripts</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-500">Review actual activity after your agent is connected.</p>
-              </div>
-            </div>
-            <Link href="/dashboard" className={`m-2 flex items-center justify-between rounded-md px-2 py-2 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-50 ${focus}`}>
-              Open the real dashboard <ArrowUpRight aria-hidden="true" size={15} />
-            </Link>
-          </figure>
-        </section>
 
-        <section aria-label="Platform capabilities" className="border-y border-zinc-200 bg-white/60">
-          <div className="mx-auto grid max-w-7xl gap-6 px-5 py-7 sm:grid-cols-3 sm:px-8">
-            {[
-              ["Built for multiple businesses", "Separate workspaces, one place to manage."],
-              ["Inspectable by design", "Prompts, flows, and source you can change."],
-              ["Hosted on your terms", "Run the dashboard and API on your infrastructure."],
-            ].map(([title, description]) => (
-              <div key={title}><h2 className="text-sm font-medium">{title}</h2><p className="mt-1.5 text-xs leading-5 text-zinc-500">{description}</p></div>
-            ))}
-          </div>
-        </section>
-
-        <section id="workflow" aria-labelledby="workflow-title" className="mx-auto grid max-w-7xl gap-10 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-[0.85fr_1.15fr] lg:gap-24">
-          <div>
-            <p className="text-xs font-medium text-emerald-800">From business context to conversation</p>
-            <h2 id="workflow-title" className="mt-4 max-w-md text-3xl font-medium leading-tight tracking-[-0.045em] sm:text-4xl">A clear path from<br />setup to the phone.</h2>
-            <p className="mt-5 max-w-sm text-sm leading-7 text-zinc-600">Start with the dashboard. Add your voice stack when you’re ready. Keep the configuration and the operational view together.</p>
-            <Link href="/dashboard/new" className={`mt-6 inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-emerald-800 transition-colors hover:text-emerald-950 ${focus}`}>Create a business <ArrowRight aria-hidden="true" size={16} /></Link>
-          </div>
-          <ol className="divide-y divide-zinc-200 border-y border-zinc-200">
-            {steps.map((step) => (
-              <li key={step.title} className="py-7 first:pt-6">
-                <p className="font-mono text-[11px] text-emerald-800">{step.detail}</p>
-                <h3 className="mt-3 text-xl font-medium tracking-tight">{step.title}</h3>
-                <p className="mt-2 max-w-lg text-sm leading-7 text-zinc-600">{step.description}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section id="self-host" aria-labelledby="hosting-title" className="border-y border-zinc-200 bg-[#eef2ec]">
-          <div className="mx-auto grid max-w-7xl gap-9 px-5 py-14 sm:px-8 sm:py-20 lg:grid-cols-2 lg:gap-20">
-            <div>
-              <p className="flex items-center gap-2 text-xs font-medium text-emerald-800"><CodeBlock aria-hidden="true" size={16} /> Not a black box</p>
-              <h2 id="hosting-title" className="mt-4 text-3xl font-medium leading-tight tracking-[-0.045em] sm:text-4xl">Clone it. Run it.<br />Make it your own.</h2>
-              <p className="mt-5 max-w-md text-sm leading-7 text-zinc-600">With Docker Compose and Make installed, boot the API and dashboard without API keys. SQLite is the default—no separate database to set up.</p>
-              <a href={`${repository}/blob/main/README.md#-quickstart-one-command`} className={`mt-6 inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-emerald-800 underline decoration-emerald-800/30 underline-offset-4 hover:text-emerald-950 ${focus}`}>Read the setup guide <ArrowUpRight aria-hidden="true" size={16} /></a>
-            </div>
-            <div className="min-w-0 self-center rounded-xl border border-zinc-300 bg-[#f8faf6]">
-              <div className="flex items-center gap-2 border-b border-zinc-200 px-5 py-3 text-xs text-zinc-500"><TerminalWindow aria-hidden="true" size={15} /> Local quickstart</div>
-              <pre className="overflow-x-auto p-5 font-mono text-xs leading-8 text-zinc-800 sm:text-sm"><code>{`git clone https://github.com/princepal9120/voicedesk
-cd voicedesk
-make up`}</code></pre>
-              <div className="border-t border-zinc-200 px-5 py-4 text-xs leading-6 text-zinc-600">
-                <p>Dashboard: <code className="text-zinc-900">localhost:3000</code></p>
-                <p>API docs: <code className="text-zinc-900">localhost:8000/docs</code></p>
-                <p className="mt-2 text-zinc-500">Voice needs provider credentials. Real phone calls also need telephony configuration; booting the dashboard does not place calls.</p>
+              {/* Terminal Quickstart Box */}
+              <div className="overflow-hidden rounded-2xl border border-zinc-300 bg-zinc-950 text-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/80 px-4 py-3 text-xs text-zinc-400">
+                  <div className="flex items-center gap-2">
+                    <TerminalWindow size={15} />
+                    <span className="font-mono">terminal — bash</span>
+                  </div>
+                  <span className="font-mono text-[11px] text-emerald-400">Local Quickstart</span>
+                </div>
+                <div className="p-6 font-mono text-xs sm:text-sm leading-relaxed text-zinc-200">
+                  <p className="text-zinc-500"># 1. Clone repository</p>
+                  <p className="text-emerald-400">git clone https://github.com/opentoolsorg/voicedesk</p>
+                  <p className="text-emerald-400">cd voicedesk</p>
+                  <br />
+                  <p className="text-zinc-500"># 2. Boot local dashboard & API (zero keys required)</p>
+                  <p className="text-emerald-400">make up</p>
+                  <br />
+                  <p className="text-zinc-500"># 3. Optional: Deploy directly to Cloudflare</p>
+                  <p className="text-emerald-400">make deploy-cf</p>
+                </div>
+                <div className="border-t border-zinc-800 bg-zinc-900/40 p-4 text-xs text-zinc-400 flex items-center justify-between">
+                  <span>Dashboard: <strong className="text-white">localhost:3000</strong></span>
+                  <span>FastAPI Docs: <strong className="text-white">localhost:8000/docs</strong></span>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section aria-labelledby="start-title" className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-7 px-5 py-14 sm:px-8 sm:py-20 md:flex-row md:items-center">
-          <div><p className="text-xs font-medium text-emerald-800">Start with a workspace</p><h2 id="start-title" className="mt-3 text-3xl font-medium tracking-[-0.045em] sm:text-4xl">Build the agent your business needs.</h2></div>
-          <Link href="/dashboard" className={`inline-flex min-h-12 shrink-0 items-center gap-3 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-emerald-900 active:bg-emerald-950 ${focus}`}>Open dashboard <ArrowRight aria-hidden="true" size={18} /></Link>
+        {/* Architecture & Flow Diagram */}
+        <section id="architecture" aria-labelledby="arch-title" className="border-t border-zinc-200/80 bg-[#f8f9f6] py-16 sm:py-24">
+          <div className="mx-auto max-w-7xl px-5 sm:px-8">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">System Design</p>
+              <h2 id="arch-title" className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-zinc-950 sm:text-4xl">
+                A clean, modular data flow.
+              </h2>
+              <p className="mt-3 text-sm text-zinc-600">
+                VoiceDesk cleanly separates the persistent audio WebRTC pipeline from the RESTful management and analytics plane.
+              </p>
+            </div>
+
+            <div className="mt-12 rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8 shadow-sm">
+              <pre className="overflow-x-auto font-mono text-xs leading-relaxed text-zinc-800 sm:text-sm">
+{`Inbound / Outbound Phone Call (PSTN / SIP)
+  │
+  ▼
+Telephony Carrier (Twilio PSTN or Exotel SIP)
+  │
+  ▼
+LiveKit Cloud / Self-Hosted WebRTC Engine
+  │
+  ├── Audio In ──► Speech-to-Text (Deepgram / Sarvam Bulbul)
+  │                      │
+  │                      ▼
+  ├── Agent Logic ◄── LLM Inference (OpenAI / Claude / Sarvam-30B)
+  │                      │
+  │                      ▼
+  └── Audio Out ◄── Text-to-Speech (Cartesia / Sarvam Saaras)
+  │
+  ▼
+FastAPI API Plane (Local Uvicorn or Cloudflare Python Worker)
+  │
+  ▼
+Database Storage (Local SQLite, PostgreSQL, or Cloudflare D1)
+  │
+  ▼
+Next.js 16 Web Dashboard (Call Records, Audio Transcripts, Lead Flow)`}
+              </pre>
+            </div>
+          </div>
+        </section>
+
+        {/* Bottom CTA Banner */}
+        <section className="border-t border-zinc-200/80 bg-zinc-950 py-16 text-white sm:py-24">
+          <div className="mx-auto max-w-5xl px-5 text-center sm:px-8">
+            <h2 className="text-3xl font-semibold tracking-[-0.04em] sm:text-5xl text-white">
+              Ready to own your voice agent stack?
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-base text-zinc-400">
+              Download the repository, customize your system prompts, and deploy on your server or Cloudflare in minutes.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <a
+                href={repository}
+                target="_blank"
+                rel="noreferrer"
+                className={`inline-flex min-h-12 items-center gap-2 rounded-lg bg-emerald-500 px-6 py-3.5 text-sm font-semibold text-zinc-950 shadow transition-colors hover:bg-emerald-400 ${focus}`}
+              >
+                <GithubLogo size={18} weight="bold" /> View on GitHub
+              </a>
+              <a
+                href="#self-host"
+                className={`inline-flex min-h-12 items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-6 py-3.5 text-sm font-medium text-zinc-200 transition-colors hover:border-zinc-500 hover:text-white ${focus}`}
+              >
+                <TerminalWindow size={18} /> Quickstart Guide
+              </a>
+            </div>
+          </div>
         </section>
       </main>
 
-      <footer className="border-t border-zinc-200">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-5 py-7 text-xs text-zinc-500 sm:px-8">
-          <p><span className="font-semibold text-zinc-800">VoiceDesk</span> / Open-source voice infrastructure</p>
-          <nav aria-label="Footer navigation" className="flex flex-wrap items-center gap-5">
-            <a href={repository} className={`rounded-sm hover:text-emerald-800 ${focus}`}>GitHub</a>
-            <a href={`${repository}/blob/main/SETUP.md`} className={`rounded-sm hover:text-emerald-800 ${focus}`}>Documentation</a>
-            <a href={`${repository}/blob/main/LICENSE`} className={`rounded-sm hover:text-emerald-800 ${focus}`}>MIT license</a>
+      {/* Footer */}
+      <footer className="border-t border-zinc-800 bg-zinc-950 text-zinc-400">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-5 py-8 text-xs sm:px-8">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-white">VoiceDesk</span>
+            <span>/</span>
+            <span>Open-source AI Voice Infrastructure</span>
+          </div>
+          <nav aria-label="Footer links" className="flex flex-wrap items-center gap-6">
+            <a href={repository} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">GitHub</a>
+            <a href="https://voicedesk.princepal.dev" className="hover:text-white transition-colors">Live Demo</a>
+            <a href="https://tryshiba.dev" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">Shiba</a>
+            <a href="https://getindexed.princepal.dev" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">GetIndexed</a>
+            <a href={`${repository}/blob/main/LICENSE`} className="hover:text-white transition-colors">MIT License</a>
           </nav>
         </div>
       </footer>
     </div>
   );
 }
+
