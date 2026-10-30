@@ -8,10 +8,9 @@ Here is how you can help.
 
 ## 🛠 Local Setup
 
-VoiceDesk is divided into three components:
-1. **`cli/`** — Python interactive setup wizard.
-2. **`backend/`** — FastAPI + SQLAlchemy + LiveKit/OpenAI voice agent server.
-3. **`frontend/`** — Next.js + React Flow visual dashboard.
+VoiceDesk is divided into two core components:
+1. **`backend/`** — FastAPI + SQLAlchemy + LiveKit voice agent server and Cloudflare Python Worker.
+2. **`frontend/`** — Next.js operational dashboard and static export assets.
 
 ### Prerequisites
 
